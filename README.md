@@ -73,6 +73,12 @@ The exported file is intended as a lightweight backup of your local journal stat
 - Track `createdAt` and `updatedAt` metadata for stronger sorting behavior
 - Add lightweight tests for filtering and sorting helpers
 
+## Credits
+
+This fan-made tracker is inspired by The Elder Scrolls V: Skyrim.
+
+Skyrim, The Elder Scrolls, and related names, world elements, and assets belong to Bethesda Softworks.
+
 ## License
 
 No license file is currently included in this repository.
