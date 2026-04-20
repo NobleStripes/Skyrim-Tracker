@@ -1,0 +1,460 @@
+:root {
+    --bg-dark: #121212;
+    --bg-panel: #1e1e1e;
+    --text-primary: #e8dcc4; /* Parchment/bone color */
+    --text-secondary: #a39c8c;
+    --accent: #c4a77d; /* Gold/brass */
+    --accent-hover: #e0ca9d;
+    --border-color: rgba(196, 167, 125, 0.3);
+    
+    --font-heading: 'Cinzel', serif;
+    --font-body: 'Crimson Text', serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-body);
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    line-height: 1.6;
+    overflow-x: hidden;
+    /* Adding a subtle dark noise texture could go here */
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    font-weight: 400;
+}
+
+.app-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 280px;
+    background-color: #0a0a0a;
+    border-right: 2px solid var(--border-color);
+    padding: 2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 5px 0 15px rgba(0, 0, 0, 0.5);
+    z-index: 10;
+}
+
+.sidebar-header {
+    margin-bottom: 2.5rem;
+    text-align: center;
+}
+
+.sidebar-header h1 {
+    font-size: 1.8rem;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
+
+.ornament {
+    height: 15px;
+    margin-top: 10px;
+    background: radial-gradient(circle, var(--accent) 1px, transparent 1px);
+    background-size: 15px 15px;
+    background-position: center;
+    background-repeat: repeat-x;
+    opacity: 0.5;
+}
+
+.nav-links {
+    list-style: none;
+    flex-grow: 1;
+}
+
+.nav-links li {
+    margin-bottom: 0.5rem;
+}
+
+.nav-item {
+    display: block;
+    width: 100%;
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    font-size: 1.2rem;
+    border-left: 3px solid transparent;
+    transition: all 0.3s ease;
+    color: var(--text-secondary);
+    background: transparent;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    text-align: left;
+}
+
+.nav-item:hover {
+    color: var(--text-primary);
+    background-color: rgba(255, 255, 255, 0.03);
+    padding-left: 1.5rem;
+}
+
+.nav-item.active {
+    color: var(--accent);
+    border-left: 3px solid var(--accent);
+    background-color: rgba(196, 167, 125, 0.1);
+}
+
+.nav-item:focus-visible,
+.primary-btn:focus-visible,
+.action-btn:focus-visible,
+.close-modal:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid #8b1e10;
+    outline-offset: 2px;
+}
+
+/* Primary Button */
+.primary-btn {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 0.8rem;
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.primary-btn:hover {
+    background-color: var(--accent);
+    color: var(--bg-dark);
+    box-shadow: 0 0 10px rgba(196, 167, 125, 0.4);
+}
+
+/* Main Content */
+.main-content {
+    flex-grow: 1;
+    background-image: url('assets/parchment.png');
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center;
+    position: relative;
+    padding: 3rem 4rem;
+    color: #2b2b2b; /* Dark ink color for parchment */
+}
+
+/* Adding an overlay to make parchment a bit more readable if needed */
+.main-content::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(232, 220, 196, 0.1); 
+    pointer-events: none;
+}
+
+.main-header {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 3rem;
+    border-bottom: 2px solid #5a4b3c;
+    padding-bottom: 1rem;
+}
+
+.main-header h2 {
+    font-size: 2.5rem;
+    color: #3b2f21;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+}
+
+.header-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+input, select, textarea {
+    font-family: var(--font-body);
+    font-size: 1.1rem;
+    padding: 0.6rem;
+    background-color: rgba(0, 0, 0, 0.05);
+    border: 1px solid #5a4b3c;
+    color: #2b2b2b;
+    border-radius: 2px;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #8b1e10; /* Dragon red focus */
+    box-shadow: 0 0 5px rgba(139, 30, 16, 0.3);
+}
+
+::placeholder {
+    color: #6a5b4c;
+}
+
+/* Quest List */
+.quest-list-container {
+    position: relative;
+    z-index: 1;
+}
+
+.quest-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.quest-card {
+    background: rgba(255, 255, 255, 0.3);
+    border: 1px solid #8b7355;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+}
+
+.quest-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 4px 4px 10px rgba(0,0,0,0.15);
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.quest-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px dashed #8b7355;
+    padding-bottom: 0.5rem;
+}
+
+.quest-title {
+    font-family: var(--font-heading);
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #3b2f21;
+}
+
+.quest-status {
+    font-family: var(--font-heading);
+    font-size: 0.9rem;
+    padding: 0.3rem 0.6rem;
+    border: 1px solid #8b7355;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.status-active { color: #8b1e10; border-color: #8b1e10; }
+.status-completed { color: #2e4a2e; border-color: #2e4a2e; }
+.status-not-started { color: #5a4b3c; }
+
+.quest-meta {
+    display: flex;
+    gap: 2rem;
+    font-style: italic;
+    font-size: 1.1rem;
+    color: #5a4b3c;
+}
+
+.quest-notes {
+    font-size: 1.2rem;
+    line-height: 1.6;
+}
+
+.quest-notes p {
+    white-space: pre-line;
+}
+
+.quest-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    font-family: var(--font-heading);
+    color: #5a4b3c;
+    cursor: pointer;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    text-decoration: underline;
+}
+
+.action-btn:hover {
+    color: #8b1e10;
+}
+
+.empty-state {
+    text-align: center;
+    font-size: 1.5rem;
+    color: #6a5b4c;
+    font-style: italic;
+    padding: 3rem;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.modal-content {
+    background-image: url('assets/parchment.png');
+    background-size: cover;
+    padding: 3rem;
+    width: 90%;
+    max-width: 600px;
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 30px rgba(0,0,0,0.8);
+    position: relative;
+    color: #2b2b2b;
+}
+
+.close-modal {
+    position: absolute;
+    top: 1rem;
+    right: 1.5rem;
+    font-size: 2rem;
+    cursor: pointer;
+    color: #5a4b3c;
+    background: transparent;
+    border: none;
+    line-height: 1;
+}
+
+.close-modal:hover {
+    color: #8b1e10;
+}
+
+.modal-content h2 {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+    color: #3b2f21;
+    border-bottom: 2px solid #5a4b3c;
+    padding-bottom: 0.5rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1.5rem;
+}
+
+.form-row {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.form-group label {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #3b2f21;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.form-help {
+    margin-bottom: 1.5rem;
+    color: #5a4b3c;
+}
+
+.field-error {
+    margin-top: 0.4rem;
+    color: #8b1e10;
+    font-size: 1rem;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.submit-btn {
+    width: 100%;
+    margin-top: 1rem;
+    border-color: #3b2f21;
+    color: #3b2f21;
+}
+
+.submit-btn:hover {
+    background-color: #3b2f21;
+    color: #e8dcc4;
+    box-shadow: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .app-container {
+        flex-direction: column;
+    }
+    .sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 2px solid var(--border-color);
+        padding: 1rem;
+    }
+    .main-content {
+        padding: 1.5rem;
+    }
+    .main-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    .header-controls {
+        width: 100%;
+        flex-direction: column;
+    }
+    .header-controls input, .header-controls select {
+        flex: 1;
+        width: 100%;
+    }
+    .quest-header,
+    .quest-meta,
+    .quest-actions,
+    .form-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    .modal-content {
+        padding: 2rem 1.5rem;
+    }
+}

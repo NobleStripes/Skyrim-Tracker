@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skyrim Quest Tracker</title>
+    <meta name="description" content="A comprehensive tool to track your progress in The Elder Scrolls V: Skyrim.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1>Skyrim Quests</h1>
+                <div class="ornament"></div>
+            </div>
+            
+            <ul class="nav-links" id="category-nav">
+                <li><button type="button" class="nav-item active" data-category="All" aria-pressed="true">All Quests</button></li>
+                <li><button type="button" class="nav-item" data-category="Main Quest" aria-pressed="false">Main Quest</button></li>
+                <li><button type="button" class="nav-item" data-category="Faction" aria-pressed="false">Factions</button></li>
+                <li><button type="button" class="nav-item" data-category="Daedric" aria-pressed="false">Daedric</button></li>
+                <li><button type="button" class="nav-item" data-category="Side Quest" aria-pressed="false">Side Quests</button></li>
+                <li><button type="button" class="nav-item" data-category="Miscellaneous" aria-pressed="false">Miscellaneous</button></li>
+            </ul>
+
+            <button id="btn-add-quest" class="primary-btn">+ Add Quest</button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="main-header">
+                <h2 id="current-category-title">All Quests</h2>
+                <div class="header-controls">
+                    <label class="sr-only" for="search-input">Search quests</label>
+                    <input type="text" id="search-input" placeholder="Search quests..." aria-label="Search quests by title or notes" autocomplete="off">
+                    <label class="sr-only" for="status-filter">Filter by status</label>
+                    <select id="status-filter" aria-label="Filter quests by status">
+                        <option value="All">All Statuses</option>
+                        <option value="Active">Active</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Not Started">Not Started</option>
+                    </select>
+                </div>
+            </header>
+
+            <div class="quest-list-container">
+                <ul id="quest-list" class="quest-list">
+                    <!-- Quest items will be injected here by JS -->
+                </ul>
+                <div id="empty-state" class="empty-state hidden">
+                    <p>No quests found.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit Quest Modal -->
+    <div id="quest-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="quest-form-help">
+        <div class="modal-content" tabindex="-1">
+            <button type="button" class="close-modal" id="close-modal" aria-label="Close quest editor">&times;</button>
+            <h2 id="modal-title">Add New Quest</h2>
+            <p id="quest-form-help" class="form-help">Required fields are marked by the browser and quest names cannot be blank.</p>
+            
+            <form id="quest-form">
+                <div class="form-group">
+                    <label for="quest-title">Quest Name</label>
+                    <input type="text" id="quest-title" required maxlength="120" aria-describedby="quest-title-error">
+                    <p id="quest-title-error" class="field-error hidden" aria-live="polite"></p>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="quest-category">Category</label>
+                        <select id="quest-category" required>
+                            <option value="Main Quest">Main Quest</option>
+                            <option value="Faction">Faction</option>
+                            <option value="Daedric">Daedric</option>
+                            <option value="Side Quest">Side Quest</option>
+                            <option value="Miscellaneous">Miscellaneous</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="quest-status">Status</label>
+                        <select id="quest-status" required>
+                            <option value="Not Started">Not Started</option>
+                            <option value="Active">Active</option>
+                            <option value="Completed">Completed</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="quest-location">Location</label>
+                    <input type="text" id="quest-location" maxlength="120">
+                </div>
+                
+                <div class="form-group">
+                    <label for="quest-notes">Journal Notes</label>
+                    <textarea id="quest-notes" rows="4" maxlength="1500"></textarea>
+                </div>
+
+                <button type="submit" class="primary-btn submit-btn">Save Quest</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
