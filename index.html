@@ -34,17 +34,34 @@
         <!-- Main Content Area -->
         <main class="main-content">
             <header class="main-header">
-                <h2 id="current-category-title">All Quests</h2>
+                <div class="header-copy">
+                    <h2 id="current-category-title">All Quests</h2>
+                    <p class="header-subtitle">Track every hold, guild, and Daedric detour in one journal.</p>
+                </div>
                 <div class="header-controls">
-                    <label class="sr-only" for="search-input">Search quests</label>
-                    <input type="text" id="search-input" placeholder="Search quests..." aria-label="Search quests by title or notes" autocomplete="off">
-                    <label class="sr-only" for="status-filter">Filter by status</label>
-                    <select id="status-filter" aria-label="Filter quests by status">
-                        <option value="All">All Statuses</option>
-                        <option value="Active">Active</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Not Started">Not Started</option>
-                    </select>
+                    <div class="filter-grid">
+                        <label class="sr-only" for="search-input">Search quests</label>
+                        <input type="text" id="search-input" placeholder="Search quests..." aria-label="Search quests by title or notes" autocomplete="off">
+                        <label class="sr-only" for="status-filter">Filter by status</label>
+                        <select id="status-filter" aria-label="Filter quests by status">
+                            <option value="All">All Statuses</option>
+                            <option value="Active">Active</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Not Started">Not Started</option>
+                        </select>
+                        <label class="sr-only" for="sort-filter">Sort quests</label>
+                        <select id="sort-filter" aria-label="Sort quests">
+                            <option value="recent">Recently Added</option>
+                            <option value="title-asc">Title A to Z</option>
+                            <option value="title-desc">Title Z to A</option>
+                            <option value="status">Status</option>
+                            <option value="category">Category</option>
+                        </select>
+                    </div>
+                    <div class="utility-actions">
+                        <button type="button" id="btn-export-quests" class="secondary-btn">Export Journal</button>
+                        <button type="button" id="btn-reset-quests" class="secondary-btn danger-btn">Reset Journal</button>
+                    </div>
                 </div>
             </header>
 
@@ -56,6 +73,7 @@
                     <p>No quests found.</p>
                 </div>
             </div>
+            <p id="quest-summary" class="quest-summary" aria-live="polite"></p>
         </main>
     </div>
 

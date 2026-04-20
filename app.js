@@ -46,14 +46,25 @@ const CATEGORY_TITLES = {
 const VALID_CATEGORIES = Object.keys(CATEGORY_TITLES).filter(category => category !== 'All');
 const VALID_STATUSES = ['Not Started', 'Active', 'Completed'];
 const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+const SORT_OPTIONS = ['recent', 'title-asc', 'title-desc', 'status', 'category'];
+const STATUS_SORT_ORDER = {
+    Active: 0,
+    'Not Started': 1,
+    Completed: 2
+};
 
 // State
-let quests = [];
-let currentCategory = 'All';
-let currentSearch = '';
-let currentStatusFilter = 'All';
-let editingQuestId = null;
-let lastFocusedElement = null;
+const state = {
+    quests: [],
+    filters: {
+        category: 'All',
+        search: '',
+        status: 'All',
+        sort: 'recent'
+    },
+    editingQuestId: null,
+    lastFocusedElement: null
+};
 
 // DOM Elements
 const questListEl = document.getElementById('quest-list');
@@ -62,9 +73,13 @@ const currentCategoryTitleEl = document.getElementById('current-category-title')
 
 const searchInput = document.getElementById('search-input');
 const statusFilter = document.getElementById('status-filter');
+const sortFilter = document.getElementById('sort-filter');
 const categoryNavLinks = document.querySelectorAll('.nav-item');
+const questSummaryEl = document.getElementById('quest-summary');
 
 const btnAddQuest = document.getElementById('btn-add-quest');
+const btnExportQuests = document.getElementById('btn-export-quests');
+const btnResetQuests = document.getElementById('btn-reset-quests');
 const modal = document.getElementById('quest-modal');
 const closeModalBtn = document.getElementById('close-modal');
 const questForm = document.getElementById('quest-form');
@@ -80,6 +95,7 @@ const questTitleErrorEl = document.getElementById('quest-title-error');
 // Initialize
 function init() {
     loadQuests();
+    syncControlsWithState();
     setupEventListeners();
     renderQuests();
 }
@@ -89,7 +105,7 @@ function loadQuests() {
     const savedQuests = localStorage.getItem(STORAGE_KEY);
 
     if (!savedQuests) {
-        quests = MOCK_QUESTS.map(normalizeQuest).filter(Boolean);
+        state.quests = createDefaultQuests();
         saveQuests();
         return;
     }
@@ -100,17 +116,21 @@ function loadQuests() {
             throw new Error('Saved quest data is not an array.');
         }
 
-        quests = parsedQuests.map(normalizeQuest).filter(Boolean);
+        state.quests = parsedQuests.map(normalizeQuest).filter(Boolean);
         saveQuests();
     } catch (error) {
         console.warn('Failed to load saved quests, restoring defaults.', error);
-        quests = MOCK_QUESTS.map(normalizeQuest).filter(Boolean);
+        state.quests = createDefaultQuests();
         saveQuests();
     }
 }
 
 function saveQuests() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(quests));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.quests));
+}
+
+function createDefaultQuests() {
+    return MOCK_QUESTS.map(normalizeQuest).filter(Boolean);
 }
 
 function normalizeQuest(rawQuest) {
@@ -125,7 +145,7 @@ function normalizeQuest(rawQuest) {
 
     const category = VALID_CATEGORIES.includes(rawQuest.category) ? rawQuest.category : 'Miscellaneous';
     const status = VALID_STATUSES.includes(rawQuest.status) ? rawQuest.status : 'Not Started';
-    const id = typeof rawQuest.id === 'string' && rawQuest.id.trim() ? rawQuest.id : Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    const id = typeof rawQuest.id === 'string' && rawQuest.id.trim() ? rawQuest.id : createQuestId();
 
     return {
         id,
@@ -137,20 +157,18 @@ function normalizeQuest(rawQuest) {
     };
 }
 
+function createQuestId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
 // Render
 function renderQuests() {
-    // Filter logic
-    let filteredQuests = quests.filter(q => {
-        const matchesCategory = currentCategory === 'All' || q.category === currentCategory;
-        const matchesSearch = q.title.toLowerCase().includes(currentSearch.toLowerCase()) || 
-                              (q.notes && q.notes.toLowerCase().includes(currentSearch.toLowerCase()));
-        const matchesStatus = currentStatusFilter === 'All' || q.status === currentStatusFilter;
-        return matchesCategory && matchesSearch && matchesStatus;
-    });
+    const filteredQuests = getVisibleQuests();
 
     // Update UI
-    currentCategoryTitleEl.textContent = CATEGORY_TITLES[currentCategory] || 'Quests';
+    currentCategoryTitleEl.textContent = getCurrentCategoryTitle();
     questListEl.innerHTML = '';
+    updateQuestSummary(filteredQuests.length);
 
     if (filteredQuests.length === 0) {
         emptyStateEl.classList.remove('hidden');
@@ -160,6 +178,64 @@ function renderQuests() {
             questListEl.appendChild(createQuestCard(quest));
         });
     }
+}
+
+function getCurrentCategoryTitle() {
+    return CATEGORY_TITLES[state.filters.category] || 'Quests';
+}
+
+function getVisibleQuests() {
+    return state.quests
+        .filter(matchesActiveFilters)
+        .sort(compareQuests);
+}
+
+function matchesActiveFilters(quest) {
+    return matchesCategoryFilter(quest) && matchesSearchFilter(quest) && matchesStatusFilter(quest);
+}
+
+function matchesCategoryFilter(quest) {
+    return state.filters.category === 'All' || quest.category === state.filters.category;
+}
+
+function matchesSearchFilter(quest) {
+    const searchTerm = state.filters.search.trim().toLowerCase();
+    if (!searchTerm) {
+        return true;
+    }
+
+    return quest.title.toLowerCase().includes(searchTerm)
+        || quest.notes.toLowerCase().includes(searchTerm)
+        || quest.location.toLowerCase().includes(searchTerm);
+}
+
+function matchesStatusFilter(quest) {
+    return state.filters.status === 'All' || quest.status === state.filters.status;
+}
+
+function compareQuests(left, right) {
+    switch (state.filters.sort) {
+        case 'title-asc':
+            return left.title.localeCompare(right.title);
+        case 'title-desc':
+            return right.title.localeCompare(left.title);
+        case 'status':
+            return (STATUS_SORT_ORDER[left.status] ?? 99) - (STATUS_SORT_ORDER[right.status] ?? 99)
+                || left.title.localeCompare(right.title);
+        case 'category':
+            return left.category.localeCompare(right.category) || left.title.localeCompare(right.title);
+        case 'recent':
+        default:
+            return state.quests.indexOf(left) - state.quests.indexOf(right);
+    }
+}
+
+function updateQuestSummary(visibleCount) {
+    const totalCount = state.quests.length;
+    const categoryLabel = state.filters.category === 'All' ? 'all categories' : CATEGORY_TITLES[state.filters.category];
+    const statusLabel = state.filters.status === 'All' ? 'every status' : state.filters.status.toLowerCase();
+    const searchLabel = state.filters.search.trim() ? ` matching "${state.filters.search.trim()}"` : '';
+    questSummaryEl.textContent = `Showing ${visibleCount} of ${totalCount} quests in ${categoryLabel.toLowerCase()} with ${statusLabel}${searchLabel}.`;
 }
 
 function createQuestCard(quest) {
@@ -234,19 +310,24 @@ function setupEventListeners() {
                 navLink.setAttribute('aria-pressed', String(navLink === e.currentTarget));
             });
 
-            currentCategory = nextCategory;
+            state.filters.category = nextCategory;
             renderQuests();
         });
     });
 
     // Search & Filter
     searchInput.addEventListener('input', (e) => {
-        currentSearch = e.target.value;
+        state.filters.search = e.target.value;
         renderQuests();
     });
 
     statusFilter.addEventListener('change', (e) => {
-        currentStatusFilter = e.target.value;
+        state.filters.status = e.target.value;
+        renderQuests();
+    });
+
+    sortFilter.addEventListener('change', (e) => {
+        state.filters.sort = SORT_OPTIONS.includes(e.target.value) ? e.target.value : 'recent';
         renderQuests();
     });
 
@@ -257,6 +338,8 @@ function setupEventListeners() {
 
     closeModalBtn.addEventListener('click', closeModal);
     modal.addEventListener('keydown', handleModalKeydown);
+    btnExportQuests.addEventListener('click', exportQuests);
+    btnResetQuests.addEventListener('click', resetQuests);
 
     // Close modal on outside click
     window.addEventListener('click', (e) => {
@@ -295,13 +378,13 @@ function setupEventListeners() {
 
 // CRUD Operations
 function openModal(id = null, triggerElement = document.activeElement) {
-    editingQuestId = id;
-    lastFocusedElement = triggerElement instanceof HTMLElement ? triggerElement : document.activeElement;
+    state.editingQuestId = id;
+    state.lastFocusedElement = triggerElement instanceof HTMLElement ? triggerElement : document.activeElement;
     clearFormErrors();
 
     if (id) {
         modalTitle.textContent = 'Edit Quest';
-        const quest = quests.find(q => q.id === id);
+        const quest = state.quests.find(q => q.id === id);
         if (!quest) {
             return;
         }
@@ -324,18 +407,18 @@ function openModal(id = null, triggerElement = document.activeElement) {
 
 function closeModal() {
     modal.classList.add('hidden');
-    editingQuestId = null;
+    state.editingQuestId = null;
     questForm.reset();
     clearFormErrors();
 
-    if (lastFocusedElement instanceof HTMLElement) {
-        lastFocusedElement.focus();
+    if (state.lastFocusedElement instanceof HTMLElement) {
+        state.lastFocusedElement.focus();
     }
 }
 
 function saveQuestFromForm() {
     const formValues = {
-        id: editingQuestId || Date.now().toString(),
+        id: state.editingQuestId || createQuestId(),
         title: questTitleInput.value.trim(),
         category: questCategoryInput.value,
         status: questStatusInput.value,
@@ -358,16 +441,16 @@ function saveQuestFromForm() {
         return;
     }
 
-    if (editingQuestId) {
-        const index = quests.findIndex(q => q.id === editingQuestId);
+    if (state.editingQuestId) {
+        const index = state.quests.findIndex(q => q.id === state.editingQuestId);
         if (index === -1) {
             closeModal();
             return;
         }
 
-        quests[index] = newQuest;
+        state.quests[index] = newQuest;
     } else {
-        quests.unshift(newQuest); // Add to beginning
+        state.quests.unshift(newQuest);
     }
 
     saveQuests();
@@ -443,18 +526,67 @@ function handleModalKeydown(event) {
 }
 
 function deleteQuest(id) {
-    quests = quests.filter(q => q.id !== id);
+    state.quests = state.quests.filter(q => q.id !== id);
     saveQuests();
     renderQuests();
 }
 
 function updateQuestStatus(id, newStatus) {
-    const quest = quests.find(q => q.id === id);
+    const quest = state.quests.find(q => q.id === id);
     if (quest) {
         quest.status = newStatus;
         saveQuests();
         renderQuests();
     }
+}
+
+function exportQuests() {
+    const payload = {
+        exportedAt: new Date().toISOString(),
+        questCount: state.quests.length,
+        quests: state.quests
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 10);
+
+    link.href = url;
+    link.download = `skyrim-quest-journal-${stamp}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
+function resetQuests() {
+    const shouldReset = confirm('Reset your journal back to the default quests? This will replace your saved quest list.');
+    if (!shouldReset) {
+        return;
+    }
+
+    state.quests = createDefaultQuests();
+    state.filters.search = '';
+    state.filters.status = 'All';
+    state.filters.sort = 'recent';
+    state.filters.category = 'All';
+
+    syncControlsWithState();
+    categoryNavLinks.forEach(link => {
+        const isActive = link.dataset.category === 'All';
+        link.classList.toggle('active', isActive);
+        link.setAttribute('aria-pressed', String(isActive));
+    });
+
+    saveQuests();
+    renderQuests();
+}
+
+function syncControlsWithState() {
+    searchInput.value = state.filters.search;
+    statusFilter.value = state.filters.status;
+    sortFilter.value = state.filters.sort;
 }
 
 // Boot up
