@@ -277,6 +277,36 @@
                     }
                 },
                 {
+                    name: 'backfillJournalStoreWithStarterQuests adds only missing Main and Daedric starters',
+                    run() {
+                        const backfilled = helper.backfillJournalStoreWithStarterQuests([
+                            {
+                                id: 'journal-one',
+                                name: 'Warrior',
+                                quests: [
+                                    { id: 'existing-main', title: 'Unbound', category: 'Main Quest', status: 'Completed', notes: 'Keep this progress.' },
+                                    { id: 'existing-side', title: 'Lights Out!', category: 'Side Quest', status: 'Active' }
+                                ]
+                            }
+                        ], [
+                            { id: 'starter-main', title: 'Unbound', category: 'Main Quest', status: 'Not Started', notes: 'Starter copy should not overwrite.' },
+                            { id: 'starter-daedric', title: 'The Black Star', category: 'Daedric', status: 'Not Started' },
+                            { id: 'starter-side', title: 'Blood on the Ice', category: 'Side Quest', status: 'Not Started' }
+                        ]);
+
+                        const journal = backfilled.journals[0];
+                        const titles = journal.quests.map(quest => quest.title);
+                        const existingMainQuest = journal.quests.find(quest => quest.title === 'Unbound' && quest.category === 'Main Quest');
+
+                        assert(backfilled.addedCount === 1, 'Expected only one missing starter quest to be added.');
+                        assert(titles.includes('The Black Star'), 'Expected the missing Daedric starter quest to be appended.');
+                        assert(!titles.includes('Blood on the Ice'), 'Expected non-Main and non-Daedric starter quests to be ignored by backfill.');
+                        assert(existingMainQuest.id === 'existing-main', 'Expected existing matching quests to keep their original id.');
+                        assert(existingMainQuest.status === 'Completed', 'Expected existing matching quests to preserve their current status.');
+                        assert(existingMainQuest.notes === 'Keep this progress.', 'Expected existing matching quests to preserve their notes.');
+                    }
+                },
+                {
                     name: 'createImportedJournal uses export metadata when available',
                     run() {
                         const imported = helper.createImportedJournal({

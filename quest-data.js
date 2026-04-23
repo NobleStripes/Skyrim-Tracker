@@ -142,6 +142,57 @@
         }, defaultName);
     }
 
+    function getQuestBackfillKey(rawQuest) {
+        const quest = normalizeQuest(rawQuest);
+        return quest ? `${quest.category}::${quest.title}`.toLowerCase() : '';
+    }
+
+    function backfillQuestListWithStarterQuests(rawQuests = [], rawStarterQuests = [], options = {}) {
+        const allowedCategories = Array.isArray(options.categories) && options.categories.length > 0
+            ? options.categories
+            : ['Main Quest', 'Daedric'];
+        const normalizedQuests = Array.isArray(rawQuests) ? rawQuests.map(normalizeQuest).filter(Boolean) : [];
+        const starterQuests = parseQuestCollection(rawStarterQuests)
+            .filter(quest => allowedCategories.includes(quest.category));
+        const existingQuestKeys = new Set(normalizedQuests.map(getQuestBackfillKey));
+        const missingStarterQuests = starterQuests
+            .filter(quest => !existingQuestKeys.has(getQuestBackfillKey(quest)))
+            .map(quest => normalizeQuest({
+                ...quest,
+                id: createId('quest')
+            }))
+            .filter(Boolean);
+
+        return {
+            quests: [...normalizedQuests, ...missingStarterQuests],
+            addedCount: missingStarterQuests.length
+        };
+    }
+
+    function backfillJournalStoreWithStarterQuests(rawJournals, rawStarterQuests = [], options = {}) {
+        const journals = parseJournalStore(rawJournals);
+        let addedCount = 0;
+
+        const backfilledJournals = journals.map(journal => {
+            const result = backfillQuestListWithStarterQuests(journal.quests, rawStarterQuests, options);
+            addedCount += result.addedCount;
+
+            if (result.addedCount === 0) {
+                return journal;
+            }
+
+            return normalizeJournal({
+                ...journal,
+                quests: result.quests
+            }, journal.name);
+        }).filter(Boolean);
+
+        return {
+            journals: backfilledJournals,
+            addedCount
+        };
+    }
+
     function inferImportedJournalName(rawPayload, fallbackName = 'Imported Journal') {
         const explicitName = typeof rawPayload?.journalName === 'string' && rawPayload.journalName.trim()
             ? rawPayload.journalName.trim()
@@ -613,6 +664,8 @@
         normalizeJournal,
         parseJournalStore,
         migrateLegacyQuestStore,
+        backfillQuestListWithStarterQuests,
+        backfillJournalStoreWithStarterQuests,
         inferImportedJournalName,
         createImportedJournal,
         buildJournalExport,

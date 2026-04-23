@@ -45,12 +45,85 @@ const MOCK_QUESTS = [
         prerequisites: ['Dragon Rising']
     },
     {
+        id: '5a',
+        title: 'The Horn of Jurgen Windcaller',
+        category: 'Main Quest',
+        status: 'Not Started',
+        location: 'Ustengrav / Riverwood',
+        notes: 'Retrieve the Horn for the Greybeards, then follow Delphine to uncover why the dragons are returning.',
+        prerequisites: ['The Way of the Voice']
+    },
+    {
+        id: '5b',
+        title: 'A Blade in the Dark',
+        category: 'Main Quest',
+        status: 'Not Started',
+        location: 'Kynesgrove',
+        notes: 'Meet Delphine in Kynesgrove and witness Alduin resurrecting a dragon.',
+        prerequisites: ['The Horn of Jurgen Windcaller']
+    },
+    {
         id: '6',
         title: 'Diplomatic Immunity',
         category: 'Main Quest',
         status: 'Not Started',
         location: 'Solitude / Thalmor Embassy',
-        notes: 'Meet Delphine in Solitude and prepare for the embassy infiltration.'
+        notes: 'Meet Delphine in Solitude and prepare for the embassy infiltration.',
+        prerequisites: ['A Blade in the Dark']
+    },
+    {
+        id: '6a',
+        title: 'A Cornered Rat',
+        category: 'Main Quest',
+        status: 'Not Started',
+        location: 'Riften',
+        notes: 'Track down Esbern in the Ratway before the Thalmor or the local criminals get to him first.',
+        prerequisites: ['Diplomatic Immunity']
+    },
+    {
+        id: '6b',
+        title: 'Alduin\'s Wall',
+        category: 'Main Quest',
+        status: 'Not Started',
+        location: 'Sky Haven Temple',
+        notes: 'Escort Esbern to Sky Haven Temple and learn the history of Alduin\'s defeat.',
+        prerequisites: ['A Cornered Rat']
+    },
+    {
+        id: '6c',
+        title: 'The Throat of the World',
+        category: 'Main Quest',
+        status: 'Not Started',
+        location: 'Throat of the World',
+        notes: 'Speak with Paarthurnax and learn where an Elder Scroll might be found.',
+        prerequisites: ['Alduin\'s Wall']
+    },
+    {
+        id: '6d',
+        title: 'Elder Knowledge',
+        category: 'Main Quest',
+        status: 'Not Started',
+        location: 'Blackreach / Tower of Mzark',
+        notes: 'Locate an Elder Scroll to read the ancient prophecy atop the Throat of the World.',
+        prerequisites: ['The Throat of the World']
+    },
+    {
+        id: '6e',
+        title: 'Alduin\'s Bane',
+        category: 'Main Quest',
+        status: 'Not Started',
+        location: 'Time-Wound, Throat of the World',
+        notes: 'Read the Elder Scroll at the Time-Wound and confront Alduin directly.',
+        prerequisites: ['Elder Knowledge']
+    },
+    {
+        id: '6f',
+        title: 'The Fallen',
+        category: 'Main Quest',
+        status: 'Not Started',
+        location: 'Whiterun',
+        notes: 'Capture a dragon in Dragonsreach so it can carry me to Skuldafn.',
+        prerequisites: ['Alduin\'s Bane']
     },
     {
         id: '7',
@@ -58,7 +131,48 @@ const MOCK_QUESTS = [
         category: 'Main Quest',
         status: 'Not Started',
         location: 'High Hrothgar',
-        notes: 'Only needed if the civil war remains unresolved. Negotiate a truce between Imperials and Stormcloaks.'
+        notes: 'Only needed if the civil war remains unresolved. Negotiate a truce between Imperials and Stormcloaks.',
+        prerequisites: ['The Fallen'],
+        branchGroup: 'Main Quest Civil War Resolution',
+        branch: 'Optional'
+    },
+    {
+        id: '7a',
+        title: 'Paarthurnax',
+        category: 'Main Quest',
+        status: 'Not Started',
+        location: 'Sky Haven Temple / Throat of the World',
+        notes: 'The Blades demand Paarthurnax\'s death, but I can refuse and continue the main story without killing him.',
+        branchGroup: 'Paarthurnax Choice',
+        branch: 'Optional',
+        prerequisites: ['Alduin\'s Bane']
+    },
+    {
+        id: '7b',
+        title: 'The World-Eater\'s Eyrie',
+        category: 'Main Quest',
+        status: 'Not Started',
+        location: 'Skuldafn',
+        notes: 'Ride Odahviing to Skuldafn and open the way to Sovngarde.',
+        prerequisites: ['The Fallen']
+    },
+    {
+        id: '7c',
+        title: 'Sovngarde',
+        category: 'Main Quest',
+        status: 'Not Started',
+        location: 'Sovngarde',
+        notes: 'Find the heroes of old in Sovngarde and prepare for the final confrontation with Alduin.',
+        prerequisites: ['The World-Eater\'s Eyrie']
+    },
+    {
+        id: '7d',
+        title: 'Dragonslayer',
+        category: 'Main Quest',
+        status: 'Not Started',
+        location: 'Sovngarde',
+        notes: 'Join the Nord heroes to defeat Alduin and finish the main quest.',
+        prerequisites: ['Sovngarde']
     },
     {
         id: '8',
@@ -198,6 +312,90 @@ const MOCK_QUESTS = [
         branch: 'Choice Driven'
     },
     {
+        id: '21a',
+        title: 'The Break of Dawn',
+        category: 'Daedric',
+        status: 'Not Started',
+        location: 'Mount Kilkreath',
+        notes: 'Meridia calls from her shrine and wants Malkoran driven out of her temple.'
+    },
+    {
+        id: '21b',
+        title: 'The House of Horrors',
+        category: 'Daedric',
+        status: 'Not Started',
+        location: 'Markarth',
+        notes: 'Investigate the abandoned house in Markarth and decide whether to serve Molag Bal\'s brutal demands.'
+    },
+    {
+        id: '21c',
+        title: 'The Taste of Death',
+        category: 'Daedric',
+        status: 'Not Started',
+        location: 'Markarth / Reachcliff Cave',
+        notes: 'Brother Verulus and Eola lead to Namira\'s quest line. The ending determines whether the cannibal feast is completed.',
+        branchGroup: 'Namira Feast Choice',
+        branch: 'Choice Driven'
+    },
+    {
+        id: '21d',
+        title: 'The Cursed Tribe',
+        category: 'Daedric',
+        status: 'Not Started',
+        location: 'Largashbur / Fallowstone Cave',
+        notes: 'Help the Orc stronghold of Largashbur and earn Malacath\'s favor.'
+    },
+    {
+        id: '21e',
+        title: 'Waking Nightmare',
+        category: 'Daedric',
+        status: 'Not Started',
+        location: 'Dawnstar / Nightcaller Temple',
+        notes: 'Join Erandur in Nightcaller Temple and decide whether to trust him when Vaermina intervenes.',
+        branchGroup: 'Vaermina Choice',
+        branch: 'Choice Driven'
+    },
+    {
+        id: '21f',
+        title: 'The Only Cure',
+        category: 'Daedric',
+        status: 'Not Started',
+        location: 'Shrine to Peryite / Bthardamz',
+        notes: 'Gather the ritual ingredients for Peryite and cleanse Bthardamz of Orchendor.'
+    },
+    {
+        id: '21g',
+        title: 'Discerning the Transmundane',
+        category: 'Daedric',
+        status: 'Not Started',
+        location: 'Septimus Signus\'s Outpost / Tower of Mzark',
+        notes: 'Work with Septimus Signus and eventually Hermaeus Mora to unlock the Oghma Infinium.'
+    },
+    {
+        id: '21h',
+        title: 'Boethiah\'s Calling',
+        category: 'Daedric',
+        status: 'Not Started',
+        location: 'Sacellum of Boethiah / Knifepoint Ridge',
+        notes: 'Boethiah demands a sacrifice before sending me to eliminate her current champion.'
+    },
+    {
+        id: '21i',
+        title: 'The Mind of Madness',
+        category: 'Daedric',
+        status: 'Not Started',
+        location: 'Solitude / Pelagius Wing',
+        notes: 'Help Dervenin return Sheogorath to his duties by navigating Pelagius\'s fractured mind.'
+    },
+    {
+        id: '21j',
+        title: 'The Whispering Door',
+        category: 'Daedric',
+        status: 'Not Started',
+        location: 'Whiterun / Dragonsreach',
+        notes: 'Investigate the whispering behind the sealed door in Dragonsreach and decide how far to go for Mephala.'
+    },
+    {
         id: '22',
         title: 'In My Time of Need',
         category: 'Side Quest',
@@ -245,10 +443,10 @@ const MOCK_QUESTS = [
     {
         id: '27',
         title: 'A Night to Remember',
-        category: 'Side Quest',
+        category: 'Daedric',
         status: 'Not Started',
         location: 'Across Skyrim',
-        notes: 'Track the aftermath of Sam Guevenne\'s drinking contest across multiple holds.'
+        notes: 'Track the aftermath of Sam Guevenne\'s drinking contest across multiple holds and claim Sanguine\'s Rose at the end.'
     },
     {
         id: '28',
@@ -290,6 +488,7 @@ const {
     normalizeJournal,
     parseJournalStore: parseJournalCollection,
     migrateLegacyQuestStore,
+    backfillJournalStoreWithStarterQuests,
     inferImportedJournalName: inferJournalNameFromPayload,
     createImportedJournal,
     buildJournalExport,
@@ -388,10 +587,11 @@ function loadJournalState() {
     try {
         const parsedJournalStore = JSON.parse(savedJournalStore);
         const parsedJournals = parseJournalCollection(parsedJournalStore);
-        state.journals = parsedJournals;
-        state.activeJournalId = parsedJournals.some(journal => journal.id === savedActiveJournalId)
+        const backfilledStore = backfillJournalStoreWithStarterQuests(parsedJournals, createDefaultQuests());
+        state.journals = backfilledStore.journals;
+        state.activeJournalId = backfilledStore.journals.some(journal => journal.id === savedActiveJournalId)
             ? savedActiveJournalId
-            : parsedJournals[0].id;
+            : backfilledStore.journals[0].id;
         syncActiveJournalQuests();
         saveJournalState();
     } catch (error) {
@@ -425,10 +625,12 @@ function migrateLegacyJournalState() {
 
     try {
         const migratedJournal = migrateLegacyQuestStore(JSON.parse(legacyQuests), DEFAULT_JOURNAL_NAME);
+        const backfilledStore = backfillJournalStoreWithStarterQuests([migratedJournal], createDefaultQuests());
+        const starterBackfilledJournal = backfilledStore.journals[0];
 
-        state.journals = [migratedJournal];
-        state.activeJournalId = migratedJournal.id;
-        state.quests = migratedJournal.quests;
+        state.journals = [starterBackfilledJournal];
+        state.activeJournalId = starterBackfilledJournal.id;
+        state.quests = starterBackfilledJournal.quests;
         saveJournalState();
     } catch (error) {
         console.warn('Failed to migrate legacy quest data, restoring defaults.', error);
