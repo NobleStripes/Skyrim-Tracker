@@ -11,6 +11,8 @@
     const VALID_CATEGORIES = Object.keys(CATEGORY_TITLES).filter(category => category !== 'All');
     const VALID_STATUSES = ['Not Started', 'Active', 'Completed'];
     const SORT_OPTIONS = ['recent', 'title-asc', 'title-desc', 'status', 'category'];
+    const BACKUP_FORMAT = 'skyrim-tracker-backup';
+    const BACKUP_VERSION = 2;
     const STATUS_SORT_ORDER = {
         Active: 0,
         'Not Started': 1,
@@ -185,7 +187,8 @@
         const activeJournal = selectJournal(journals, activeJournalId);
 
         return {
-            format: 'skyrim-tracker-backup',
+            format: BACKUP_FORMAT,
+            version: BACKUP_VERSION,
             exportedAt: normalizeTimestamp(exportedAt),
             activeJournalId: activeJournal ? activeJournal.id : journals[0].id,
             journalCount: journals.length,
@@ -193,14 +196,64 @@
         };
     }
 
+    function migrateJournalBackup(rawPayload) {
+        if (!rawPayload || typeof rawPayload !== 'object') {
+            throw new Error('Backup data must be an object.');
+        }
+
+        const fallbackExportedAt = normalizeTimestamp(rawPayload.exportedAt, createTimestamp());
+        const fallbackActiveJournalId = rawPayload.activeJournalId;
+
+        if (rawPayload.format === BACKUP_FORMAT && typeof rawPayload.version === 'number') {
+            if (rawPayload.version > BACKUP_VERSION) {
+                throw new Error(`Backup version ${rawPayload.version} is newer than this app supports.`);
+            }
+
+            switch (rawPayload.version) {
+                case 1:
+                    return {
+                        format: BACKUP_FORMAT,
+                        version: BACKUP_VERSION,
+                        exportedAt: fallbackExportedAt,
+                        activeJournalId: fallbackActiveJournalId,
+                        journals: rawPayload.journals
+                    };
+                case BACKUP_VERSION:
+                default:
+                    return {
+                        format: BACKUP_FORMAT,
+                        version: rawPayload.version,
+                        exportedAt: fallbackExportedAt,
+                        activeJournalId: fallbackActiveJournalId,
+                        journals: rawPayload.journals
+                    };
+            }
+        }
+
+        if (Array.isArray(rawPayload.journals)) {
+            return {
+                format: BACKUP_FORMAT,
+                version: 1,
+                exportedAt: fallbackExportedAt,
+                activeJournalId: fallbackActiveJournalId,
+                journals: rawPayload.journals
+            };
+        }
+
+        throw new Error('Backup data must include a journals array.');
+    }
+
     function parseJournalBackup(rawPayload) {
-        const journals = parseJournalStore(rawPayload);
-        const activeJournal = selectJournal(journals, rawPayload?.activeJournalId);
+        const migratedBackup = migrateJournalBackup(rawPayload);
+        const journals = parseJournalStore(migratedBackup);
+        const activeJournal = selectJournal(journals, migratedBackup.activeJournalId);
 
         return {
+            format: BACKUP_FORMAT,
+            version: BACKUP_VERSION,
             journals,
             activeJournalId: activeJournal ? activeJournal.id : journals[0].id,
-            exportedAt: normalizeTimestamp(rawPayload?.exportedAt, createTimestamp())
+            exportedAt: normalizeTimestamp(migratedBackup.exportedAt, createTimestamp())
         };
     }
 
@@ -377,6 +430,152 @@
         return viewModel;
     }
 
+    function buildQuestTaxonomyViewModel(rawQuest) {
+        const quest = normalizeQuest(rawQuest);
+        if (!quest) {
+            return null;
+        }
+
+        return {
+            branchGroup: quest.branchGroup,
+            branch: quest.branch,
+            prerequisites: [...quest.prerequisites]
+        };
+    }
+
+    function renderQuestCard(documentRef, rawQuest, options = {}) {
+        if (!documentRef) {
+            throw new Error('A document is required to render a quest card.');
+        }
+
+        const quest = normalizeQuest(rawQuest);
+        if (!quest) {
+            throw new Error('A valid quest is required to render a quest card.');
+        }
+
+        const labels = {
+            edit: 'Edit',
+            complete: 'Mark Completed',
+            delete: 'Delete',
+            category: 'Category:',
+            location: 'Location:',
+            unknownLocation: 'Unknown',
+            noJournalEntries: 'No journal entries.',
+            prerequisites: 'Prerequisites:',
+            branchGroup: 'Branch Group:',
+            path: 'Path:',
+            ...options.labels,
+        };
+
+        const li = documentRef.createElement('li');
+        li.className = 'quest-card';
+
+        const header = documentRef.createElement('div');
+        header.className = 'quest-header';
+
+        const title = documentRef.createElement('h3');
+        title.className = 'quest-title';
+        title.textContent = quest.title;
+
+        const status = documentRef.createElement('span');
+        status.className = `quest-status status-${quest.status.toLowerCase().replace(/\s+/g, '-')}`;
+        status.textContent = quest.status;
+        header.append(title, status);
+
+        const meta = documentRef.createElement('div');
+        meta.className = 'quest-meta';
+        meta.append(
+            buildMetaItem(documentRef, labels.category, quest.category),
+            buildMetaItem(documentRef, labels.location, quest.location || labels.unknownLocation)
+        );
+
+        const taxonomy = buildQuestTaxonomyViewModel(quest);
+        const taxonomyNode = taxonomy ? renderQuestTaxonomy(documentRef, taxonomy, labels) : null;
+
+        const notes = documentRef.createElement('div');
+        notes.className = 'quest-notes';
+        const notesText = documentRef.createElement('p');
+        notesText.textContent = quest.notes || labels.noJournalEntries;
+        notes.appendChild(notesText);
+
+        const actions = documentRef.createElement('div');
+        actions.className = 'quest-actions';
+        actions.append(
+            buildActionButton(documentRef, labels.edit, 'edit-btn', quest.id),
+            ...(quest.status !== 'Completed' ? [buildActionButton(documentRef, labels.complete, 'complete-btn', quest.id)] : []),
+            buildActionButton(documentRef, labels.delete, 'delete-btn', quest.id)
+        );
+
+        li.append(header, meta);
+        if (taxonomyNode) {
+            li.appendChild(taxonomyNode);
+        }
+        li.append(notes, actions);
+        return li;
+    }
+
+    function renderQuestTaxonomy(documentRef, taxonomy, labels) {
+        const hasBranchInfo = taxonomy.branchGroup || taxonomy.branch;
+        const hasPrerequisites = Array.isArray(taxonomy.prerequisites) && taxonomy.prerequisites.length > 0;
+
+        if (!hasBranchInfo && !hasPrerequisites) {
+            return null;
+        }
+
+        const wrapper = documentRef.createElement('div');
+        wrapper.className = 'quest-taxonomy';
+
+        if (hasBranchInfo) {
+            const tags = documentRef.createElement('div');
+            tags.className = 'quest-tags';
+
+            if (taxonomy.branchGroup) {
+                tags.appendChild(buildQuestTag(documentRef, `${labels.branchGroup} ${taxonomy.branchGroup}`, 'branch-group'));
+            }
+
+            if (taxonomy.branch) {
+                tags.appendChild(buildQuestTag(documentRef, `${labels.path} ${taxonomy.branch}`, 'branch'));
+            }
+
+            wrapper.appendChild(tags);
+        }
+
+        if (hasPrerequisites) {
+            const prerequisites = documentRef.createElement('p');
+            prerequisites.className = 'quest-prerequisites';
+            const label = documentRef.createElement('strong');
+            label.textContent = `${labels.prerequisites} `;
+            prerequisites.append(label, taxonomy.prerequisites.join(', '));
+            wrapper.appendChild(prerequisites);
+        }
+
+        return wrapper;
+    }
+
+    function buildQuestTag(documentRef, text, variant) {
+        const tag = documentRef.createElement('span');
+        tag.className = `quest-tag tag-${variant}`;
+        tag.textContent = text;
+        return tag;
+    }
+
+    function buildMetaItem(documentRef, label, value) {
+        const wrapper = documentRef.createElement('span');
+        const strong = documentRef.createElement('strong');
+        strong.textContent = `${label} `;
+        wrapper.append(strong, value);
+        return wrapper;
+    }
+
+    function buildActionButton(documentRef, label, className, id) {
+        const button = documentRef.createElement('button');
+        button.type = 'button';
+        button.className = `action-btn ${className}`;
+        button.dataset.id = id;
+        button.textContent = label;
+        return button;
+    }
+
     function selectJournal(rawJournals = [], journalId) {
         const journals = Array.isArray(rawJournals) ? rawJournals : [];
         return journals.find(journal => journal.id === journalId) || journals[0] || null;
@@ -406,6 +605,8 @@
         VALID_STATUSES,
         SORT_OPTIONS,
         STATUS_SORT_ORDER,
+        BACKUP_FORMAT,
+        BACKUP_VERSION,
         createId,
         normalizeQuest,
         parseQuestCollection,
@@ -416,6 +617,7 @@
         createImportedJournal,
         buildJournalExport,
         buildJournalStoreExport,
+        migrateJournalBackup,
         parseJournalBackup,
         normalizeFilters,
         matchesQuestFilters,
@@ -428,6 +630,8 @@
         summarizeJournal,
         buildJournalDetailsViewModel,
         renderJournalDetailsList,
+        buildQuestTaxonomyViewModel,
+        renderQuestCard,
         createDefaultJournal
     };
 }(window));

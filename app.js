@@ -294,6 +294,8 @@ const {
     createImportedJournal,
     buildJournalExport,
     buildJournalStoreExport,
+    BACKUP_FORMAT,
+    BACKUP_VERSION,
     parseJournalBackup,
     getVisibleQuests: getVisibleQuestList,
     duplicateJournal,
@@ -302,6 +304,7 @@ const {
     touchJournal,
     summarizeJournal,
     renderJournalDetailsList,
+    renderQuestCard,
     createDefaultJournal
 } = window.SkyrimQuestData;
 
@@ -555,7 +558,7 @@ function renderQuests() {
     } else {
         emptyStateEl.classList.add('hidden');
         filteredQuests.forEach(quest => {
-            questListEl.appendChild(createQuestCard(quest));
+            questListEl.appendChild(renderQuestCard(document, quest));
         });
     }
 }
@@ -594,119 +597,6 @@ function updateQuestSummary(visibleCount) {
     const searchLabel = state.filters.search.trim() ? ` matching "${state.filters.search.trim()}"` : '';
     const journalLabel = activeJournal ? ` in ${activeJournal.name}` : '';
     questSummaryEl.textContent = `Showing ${visibleCount} of ${totalCount} quests${journalLabel} across ${categoryLabel.toLowerCase()} with ${statusLabel}${searchLabel}.`;
-}
-
-function createQuestCard(quest) {
-    const li = document.createElement('li');
-    li.className = 'quest-card';
-
-    const header = document.createElement('div');
-    header.className = 'quest-header';
-
-    const title = document.createElement('h3');
-    title.className = 'quest-title';
-    title.textContent = quest.title;
-
-    const status = document.createElement('span');
-    status.className = `quest-status status-${quest.status.toLowerCase().replace(/\s+/g, '-')}`;
-    status.textContent = quest.status;
-
-    header.append(title, status);
-
-    const meta = document.createElement('div');
-    meta.className = 'quest-meta';
-    meta.append(
-        buildMetaItem('Category:', quest.category),
-        buildMetaItem('Location:', quest.location || 'Unknown')
-    );
-
-    const notes = document.createElement('div');
-    notes.className = 'quest-notes';
-
-    const notesText = document.createElement('p');
-    notesText.textContent = quest.notes || 'No journal entries.';
-    notes.appendChild(notesText);
-
-    const taxonomy = buildQuestTaxonomy(quest);
-
-    const actions = document.createElement('div');
-    actions.className = 'quest-actions';
-    actions.append(
-        buildActionButton('Edit', 'edit-btn', quest.id),
-        ...(quest.status !== 'Completed' ? [buildActionButton('Mark Completed', 'complete-btn', quest.id)] : []),
-        buildActionButton('Delete', 'delete-btn', quest.id)
-    );
-
-    li.append(header, meta);
-    if (taxonomy) {
-        li.appendChild(taxonomy);
-    }
-    li.append(notes, actions);
-    return li;
-}
-
-function buildQuestTaxonomy(quest) {
-    const hasBranchInfo = quest.branchGroup || quest.branch;
-    const hasPrerequisites = quest.prerequisites.length > 0;
-
-    if (!hasBranchInfo && !hasPrerequisites) {
-        return null;
-    }
-
-    const wrapper = document.createElement('div');
-    wrapper.className = 'quest-taxonomy';
-
-    if (hasBranchInfo) {
-        const tags = document.createElement('div');
-        tags.className = 'quest-tags';
-
-        if (quest.branchGroup) {
-            tags.appendChild(buildQuestTag(`Branch Group: ${quest.branchGroup}`, 'branch-group'));
-        }
-
-        if (quest.branch) {
-            tags.appendChild(buildQuestTag(`Path: ${quest.branch}`, 'branch'));
-        }
-
-        wrapper.appendChild(tags);
-    }
-
-    if (hasPrerequisites) {
-        const prerequisites = document.createElement('p');
-        prerequisites.className = 'quest-prerequisites';
-
-        const label = document.createElement('strong');
-        label.textContent = 'Prerequisites: ';
-
-        prerequisites.append(label, quest.prerequisites.join(', '));
-        wrapper.appendChild(prerequisites);
-    }
-
-    return wrapper;
-}
-
-function buildQuestTag(text, variant) {
-    const tag = document.createElement('span');
-    tag.className = `quest-tag tag-${variant}`;
-    tag.textContent = text;
-    return tag;
-}
-
-function buildMetaItem(label, value) {
-    const wrapper = document.createElement('span');
-    const strong = document.createElement('strong');
-    strong.textContent = `${label} `;
-    wrapper.append(strong, value);
-    return wrapper;
-}
-
-function buildActionButton(label, className, id) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = `action-btn ${className}`;
-    button.dataset.id = id;
-    button.textContent = label;
-    return button;
 }
 
 // Event Listeners
@@ -1091,7 +981,7 @@ async function importBackupFromFile(event) {
     try {
         const payload = JSON.parse(await file.text());
         const backup = parseJournalBackup(payload);
-        const shouldImport = confirm(`Import ${backup.journals.length} journals from ${file.name}? This will replace all current playthroughs.`);
+        const shouldImport = confirm(`Import ${backup.journals.length} journals from ${file.name}? This will replace all current playthroughs. Backup format ${BACKUP_FORMAT} v${backup.version}.`);
         if (!shouldImport) {
             return;
         }

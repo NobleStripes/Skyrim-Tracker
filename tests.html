@@ -321,10 +321,27 @@
                             { id: 'journal-two', name: 'Mage', quests: [{ title: 'First Lessons', category: 'Faction', status: 'Active' }] }
                         ], 'journal-two', '2026-04-23T08:30:00.000Z');
 
-                        assert(backup.format === 'skyrim-tracker-backup', 'Expected backup format marker.');
+                        assert(backup.format === helper.BACKUP_FORMAT, 'Expected backup format marker.');
+                        assert(backup.version === helper.BACKUP_VERSION, 'Expected backup version marker.');
                         assert(backup.journalCount === 2, 'Expected backup journal count.');
                         assert(backup.activeJournalId === 'journal-two', 'Expected active journal id to be preserved in backup.');
                         assert(backup.exportedAt === '2026-04-23T08:30:00.000Z', 'Expected backup export timestamp to be preserved.');
+                    }
+                },
+                {
+                    name: 'migrateJournalBackup upgrades unversioned backups',
+                    run() {
+                        const migrated = helper.migrateJournalBackup({
+                            exportedAt: '2026-04-23T08:30:00.000Z',
+                            activeJournalId: 'journal-two',
+                            journals: [
+                                { id: 'journal-one', name: 'Warrior', quests: [{ title: 'Unbound', category: 'Main Quest', status: 'Completed' }] },
+                                { id: 'journal-two', name: 'Mage', quests: [{ title: 'First Lessons', category: 'Faction', status: 'Active' }] }
+                            ]
+                        });
+
+                        assert(migrated.format === helper.BACKUP_FORMAT, 'Expected migrated backups to gain the format marker.');
+                        assert(migrated.version === 1, 'Expected unversioned backups to be treated as legacy version 1.');
                     }
                 },
                 {
@@ -340,8 +357,29 @@
                         });
 
                         assert(parsedBackup.journals.length === 2, 'Expected all journals to be parsed from backup.');
+                        assert(parsedBackup.version === helper.BACKUP_VERSION, 'Expected parsed backups to return the current backup version.');
                         assert(parsedBackup.activeJournalId === 'journal-two', 'Expected backup parser to preserve active journal selection.');
                         assert(parsedBackup.journals[1].name === 'Mage', 'Expected backup parser to preserve journal data.');
+                    }
+                },
+                {
+                    name: 'parseJournalBackup rejects unsupported future versions',
+                    run() {
+                        let threw = false;
+
+                        try {
+                            helper.parseJournalBackup({
+                                format: helper.BACKUP_FORMAT,
+                                version: helper.BACKUP_VERSION + 1,
+                                journals: [
+                                    { id: 'journal-one', name: 'Warrior', quests: [{ title: 'Unbound', category: 'Main Quest', status: 'Completed' }] }
+                                ]
+                            });
+                        } catch (error) {
+                            threw = /newer than this app supports/i.test(String(error.message));
+                        }
+
+                        assert(threw, 'Expected unsupported future backup versions to throw.');
                     }
                 },
                 {
@@ -541,6 +579,47 @@
                         assert(!container.children[0].classList.contains('active'), 'Expected non-active journal cards to omit the active class.');
                         assert(container.children[1].classList.contains('active'), 'Expected the selected journal card to receive the active class.');
                         assert(container.children[1].querySelector('.journal-detail-meta').textContent === 'Currently selected playthrough', 'Expected the active journal label to render.');
+                    }
+                },
+                {
+                    name: 'renderQuestCard includes taxonomy, meta, and actions for active quests',
+                    run() {
+                        const card = helper.renderQuestCard(document, {
+                            id: 'quest-one',
+                            title: 'The Black Star',
+                            category: 'Daedric',
+                            status: 'Active',
+                            location: 'Winterhold',
+                            notes: 'Choose who to trust.',
+                            branchGroup: 'Azura Artifact Choice',
+                            branch: 'Choice Driven',
+                            prerequisites: ['Find Nelacar']
+                        });
+
+                        assert(card.classList.contains('quest-card'), 'Expected the root quest card class.');
+                        assert(card.querySelector('.quest-title').textContent === 'The Black Star', 'Expected quest title to render.');
+                        assert(card.querySelector('.quest-status').textContent === 'Active', 'Expected quest status to render.');
+                        assert(card.querySelector('.quest-taxonomy') !== null, 'Expected taxonomy block to render for branched quests.');
+                        assert(card.querySelector('.quest-tag.tag-branch-group').textContent.includes('Azura Artifact Choice'), 'Expected branch-group tag to render.');
+                        assert(card.querySelector('.quest-prerequisites').textContent.includes('Find Nelacar'), 'Expected prerequisites text to render.');
+                        assert(card.querySelectorAll('.action-btn').length === 3, 'Expected edit, complete, and delete actions for incomplete quests.');
+                    }
+                },
+                {
+                    name: 'renderQuestCard omits complete button for completed quests',
+                    run() {
+                        const card = helper.renderQuestCard(document, {
+                            id: 'quest-two',
+                            title: 'Unbound',
+                            category: 'Main Quest',
+                            status: 'Completed',
+                            notes: ''
+                        });
+
+                        assert(card.querySelector('.quest-notes p').textContent === 'No journal entries.', 'Expected empty notes to use the fallback text.');
+                        assert(card.querySelectorAll('.action-btn').length === 2, 'Expected only edit and delete actions for completed quests.');
+                        assert(card.querySelector('.complete-btn') === null, 'Expected no complete action for completed quests.');
+                        assert(card.querySelector('.quest-meta').textContent.includes('Unknown'), 'Expected missing location to fall back to Unknown.');
                     }
                 }
             ];

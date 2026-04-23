@@ -14,23 +14,6 @@ The app runs entirely in the browser, stores quest data in localStorage, and pro
 - Show quest prerequisites and branch tags for mutually exclusive paths
 - Keep multiple named journals and switch between character playthroughs from the app header
 - Duplicate or delete journals so old playthroughs can be forked or cleaned up
-- Show a journal details panel with quest counts and last-updated information for each playthrough
-- Import a saved journal into a named playthrough slot
-- Export the current journal as JSON
-- Import and export full backup files for the entire journal list at once
-- Reset the active journal back to a broader starter journal with main, faction, Daedric, side, and branching quests
-- Persist data locally in the browser with no backend required
-- Open a lightweight browser test page for import parsing, backup handling, filtering, sorting, migration, and journal details rendering coverage
-- Keyboard-accessible modal interactions and responsive layout improvements
-
-
-## Project Structure
-
-```text
-Skyrim-Tracker/
-|-- index.html
-|-- styles.css
-|-- app.js
 |-- quest-data.js
 |-- tests.html
 |-- LICENSE
@@ -45,13 +28,6 @@ Skyrim-Tracker/
 - `LICENSE`: Repository license terms
 - `assets/`: Static visual assets such as the parchment background
 
-## Running Locally
-
-No build step or dependency installation is required.
-
-1. Open `index.html` directly in a browser.
-2. Or serve the folder with any simple static file server if you prefer.
-3. Open `tests.html` in a browser whenever you want to run the lightweight helper tests.
 
 Examples:
 
@@ -84,29 +60,14 @@ Each journal also tracks `createdAt` and `updatedAt` metadata. The app surfaces 
 - `Reset Journal` restores only the active journal back to the built-in default quests and clears active filters.
 
 The exported files are intended as lightweight backups of your local journal state.
-
-## Current Limitations
-
-- Data is stored per browser, not synced across devices
-- The included test page covers shared helper logic, not full UI interactions or DOM rendering
-- `Recently Added` sorting uses current in-memory order rather than explicit timestamps
-
-## Suggested Next Steps
-
 - Add lightweight tests for quest card rendering behavior and the journal details panel UI
 - Track explicit quest-level timestamps if you want recent sorting to survive imports and edits more precisely
 
 ## Credits
 
-This fan-made tracker is inspired by The Elder Scrolls V: Skyrim.
-
-Skyrim, The Elder Scrolls, and related names, world elements, and assets belong to Bethesda Softworks.
 
 ## License
 
-This repository includes a [LICENSE](LICENSE) file with the project license terms.
-
-- Show a journal details panel with quest counts and last-updated information for each playthrough
 - Import a saved journal into a named playthrough slot
 - Export the current journal as JSON
 - Reset the journal back to a broader starter journal with main, faction, Daedric, side, and branching quests
