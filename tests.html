@@ -119,7 +119,7 @@
 <body>
     <main>
         <h1>Skyrim Tracker Tests</h1>
-        <p>This page exercises the shared import parsing, filtering, sorting, and journal-management helpers used by the app.</p>
+        <p>This page exercises the shared import parsing, backup handling, filtering, sorting, journal management, and journal-details rendering helpers used by the app.</p>
         <div class="toolbar">
             <button type="button" id="rerun-tests">Run Tests Again</button>
             <span id="timestamp"></span>
@@ -215,6 +215,7 @@
                         assert(journal.name === 'Mage Run', 'Expected journal name to be trimmed.');
                         assert(journal.quests.length === 1, 'Expected normalized nested quests.');
                         assert(journal.quests[0].title === 'Visit the College of Winterhold', 'Expected quest title to persist.');
+                        assert(typeof journal.updatedAt === 'string', 'Expected journals to carry updatedAt metadata.');
                     }
                 },
                 {
@@ -227,6 +228,120 @@
                         assert(journal.name === 'Bard Run', 'Expected the provided journal name.');
                         assert(journal.quests.length === 1, 'Expected quests to be wrapped into the journal.');
                         assert(journal.id.startsWith('journal-'), 'Expected journal ids to carry a journal prefix.');
+                    }
+                },
+                {
+                    name: 'parseJournalStore rejects malformed stores',
+                    run() {
+                        let threw = false;
+
+                        try {
+                            helper.parseJournalStore({ journals: [] });
+                        } catch (error) {
+                            threw = /at least one journal/i.test(String(error.message));
+                        }
+
+                        assert(threw, 'Expected an empty journal store to throw.');
+                    }
+                },
+                {
+                    name: 'parseJournalStore keeps valid journal metadata',
+                    run() {
+                        const journals = helper.parseJournalStore({
+                            journals: [
+                                {
+                                    id: 'journal-one',
+                                    name: 'Warrior',
+                                    createdAt: '2026-01-10T08:00:00.000Z',
+                                    updatedAt: '2026-01-15T09:30:00.000Z',
+                                    quests: [{ title: 'Unbound', category: 'Main Quest', status: 'Completed' }]
+                                }
+                            ]
+                        });
+
+                        assert(journals.length === 1, 'Expected one parsed journal.');
+                        assert(journals[0].createdAt === '2026-01-10T08:00:00.000Z', 'Expected createdAt metadata to persist.');
+                        assert(journals[0].updatedAt === '2026-01-15T09:30:00.000Z', 'Expected updatedAt metadata to persist.');
+                    }
+                },
+                {
+                    name: 'migrateLegacyQuestStore wraps legacy quests into a journal',
+                    run() {
+                        const migrated = helper.migrateLegacyQuestStore([
+                            { title: 'Bleak Falls Barrow', category: 'Main Quest', status: 'Active' }
+                        ], 'Nord Save');
+
+                        assert(migrated.name === 'Nord Save', 'Expected legacy migration to use the provided default name.');
+                        assert(migrated.quests.length === 1, 'Expected legacy quest array to migrate into a journal.');
+                        assert(migrated.quests[0].title === 'Bleak Falls Barrow', 'Expected migrated quest content to be preserved.');
+                    }
+                },
+                {
+                    name: 'createImportedJournal uses export metadata when available',
+                    run() {
+                        const imported = helper.createImportedJournal({
+                            journalName: 'Imperial Run',
+                            createdAt: '2026-03-01T10:00:00.000Z',
+                            updatedAt: '2026-03-02T11:00:00.000Z',
+                            quests: [
+                                { title: 'Joining the Legion', category: 'Faction', status: 'Active' }
+                            ]
+                        }, 'Fallback');
+
+                        assert(imported.name === 'Imperial Run', 'Expected import helper to prefer exported journal names.');
+                        assert(imported.createdAt === '2026-03-01T10:00:00.000Z', 'Expected import helper to preserve createdAt.');
+                        assert(imported.updatedAt === '2026-03-02T11:00:00.000Z', 'Expected import helper to preserve updatedAt.');
+                    }
+                },
+                {
+                    name: 'buildJournalExport includes metadata and quest count',
+                    run() {
+                        const exported = helper.buildJournalExport({
+                            id: 'journal-one',
+                            name: 'Companion Run',
+                            createdAt: '2026-02-01T12:00:00.000Z',
+                            updatedAt: '2026-02-05T12:00:00.000Z',
+                            quests: [
+                                { title: 'Take Up Arms', category: 'Faction', status: 'Completed' },
+                                { title: 'Proving Honor', category: 'Faction', status: 'Active' }
+                            ]
+                        }, '2026-04-23T08:15:00.000Z');
+
+                        assert(exported.journalName === 'Companion Run', 'Expected exported payload to carry the journal name.');
+                        assert(exported.questCount === 2, 'Expected exported payload to include questCount.');
+                        assert(exported.createdAt === '2026-02-01T12:00:00.000Z', 'Expected exported payload to preserve createdAt.');
+                        assert(exported.updatedAt === '2026-02-05T12:00:00.000Z', 'Expected exported payload to preserve updatedAt.');
+                    }
+                },
+                {
+                    name: 'buildJournalStoreExport includes all journals and active journal id',
+                    run() {
+                        const backup = helper.buildJournalStoreExport([
+                            { id: 'journal-one', name: 'Warrior', quests: [{ title: 'Unbound', category: 'Main Quest', status: 'Completed' }] },
+                            { id: 'journal-two', name: 'Mage', quests: [{ title: 'First Lessons', category: 'Faction', status: 'Active' }] }
+                        ], 'journal-two', '2026-04-23T08:30:00.000Z');
+
+                        assert(backup.format === 'skyrim-tracker-backup', 'Expected backup format marker.');
+                        assert(backup.journalCount === 2, 'Expected backup journal count.');
+                        assert(backup.activeJournalId === 'journal-two', 'Expected active journal id to be preserved in backup.');
+                        assert(backup.exportedAt === '2026-04-23T08:30:00.000Z', 'Expected backup export timestamp to be preserved.');
+                    }
+                },
+                {
+                    name: 'parseJournalBackup normalizes journals and active selection',
+                    run() {
+                        const parsedBackup = helper.parseJournalBackup({
+                            exportedAt: '2026-04-23T08:30:00.000Z',
+                            activeJournalId: 'journal-two',
+                            journals: [
+                                { id: 'journal-one', name: 'Warrior', quests: [{ title: 'Unbound', category: 'Main Quest', status: 'Completed' }] },
+                                { id: 'journal-two', name: 'Mage', quests: [{ title: 'First Lessons', category: 'Faction', status: 'Active' }] }
+                            ]
+                        });
+
+                        assert(parsedBackup.journals.length === 2, 'Expected all journals to be parsed from backup.');
+                        assert(parsedBackup.activeJournalId === 'journal-two', 'Expected backup parser to preserve active journal selection.');
+                        assert(parsedBackup.journals[1].name === 'Mage', 'Expected backup parser to preserve journal data.');
                     }
                 },
                 {
@@ -288,6 +403,8 @@
                         const original = helper.normalizeJournal({
                             id: 'journal-original',
                             name: 'Stealth Run',
+                            createdAt: '2026-04-01T08:00:00.000Z',
+                            updatedAt: '2026-04-02T08:00:00.000Z',
                             quests: [
                                 { id: 'quest-1', title: 'Loud and Clear', category: 'Faction', status: 'Active', prerequisites: ['Taking Care of Business'] }
                             ]
@@ -299,6 +416,7 @@
                         assert(duplicate.id !== original.id, 'Expected duplicated journal to receive a new id.');
                         assert(duplicate.quests[0].id !== original.quests[0].id, 'Expected duplicated quests to receive new ids.');
                         assert(duplicate.quests[0].title === original.quests[0].title, 'Expected duplicated quest content to be preserved.');
+                        assert(duplicate.updatedAt !== original.updatedAt, 'Expected duplicated journal metadata to get a fresh timestamp.');
                     }
                 },
                 {
@@ -328,6 +446,101 @@
                         }
 
                         assert(threw, 'Expected deleting the final journal to throw.');
+                    }
+                },
+                {
+                    name: 'touchJournal updates only the updatedAt timestamp',
+                    run() {
+                        const touched = helper.touchJournal({
+                            id: 'journal-one',
+                            name: 'Mage Run',
+                            createdAt: '2026-04-10T08:00:00.000Z',
+                            updatedAt: '2026-04-11T08:00:00.000Z',
+                            quests: [{ title: 'First Lessons', category: 'Faction', status: 'Active' }]
+                        }, '2026-04-12T08:00:00.000Z');
+
+                        assert(touched.createdAt === '2026-04-10T08:00:00.000Z', 'Expected createdAt to remain unchanged when touching a journal.');
+                        assert(touched.updatedAt === '2026-04-12T08:00:00.000Z', 'Expected touchJournal to replace updatedAt.');
+                    }
+                },
+                {
+                    name: 'summarizeJournal returns quest counts and timestamps',
+                    run() {
+                        const summary = helper.summarizeJournal({
+                            id: 'journal-one',
+                            name: 'Hybrid Run',
+                            createdAt: '2026-04-01T08:00:00.000Z',
+                            updatedAt: '2026-04-13T08:00:00.000Z',
+                            quests: [
+                                { title: 'Unbound', category: 'Main Quest', status: 'Completed' },
+                                { title: 'Dragon Rising', category: 'Main Quest', status: 'Active' },
+                                { title: 'Take Up Arms', category: 'Faction', status: 'Not Started' }
+                            ]
+                        });
+
+                        assert(summary.total === 3, 'Expected total quest count to be reported.');
+                        assert(summary.completed === 1, 'Expected completed count to be reported.');
+                        assert(summary.active === 1, 'Expected active count to be reported.');
+                        assert(summary.notStarted === 1, 'Expected not-started count to be reported.');
+                        assert(summary.updatedAt === '2026-04-13T08:00:00.000Z', 'Expected summary to preserve updatedAt.');
+                    }
+                },
+                {
+                    name: 'renderJournalDetailsList renders one card per journal',
+                    run() {
+                        const container = document.createElement('ul');
+
+                        const rendered = helper.renderJournalDetailsList(container, [
+                            {
+                                id: 'journal-one',
+                                name: 'Warrior',
+                                updatedAt: '2026-04-13T08:00:00.000Z',
+                                quests: [
+                                    { title: 'Unbound', category: 'Main Quest', status: 'Completed' },
+                                    { title: 'Dragon Rising', category: 'Main Quest', status: 'Active' }
+                                ]
+                            },
+                            {
+                                id: 'journal-two',
+                                name: 'Mage',
+                                updatedAt: '2026-04-14T08:00:00.000Z',
+                                quests: [
+                                    { title: 'First Lessons', category: 'Faction', status: 'Active' }
+                                ]
+                            }
+                        ], 'journal-two', {
+                            formatTimestamp: (value) => `formatted:${value}`
+                        });
+
+                        assert(rendered.length === 2, 'Expected a view model entry for each journal.');
+                        assert(container.children.length === 2, 'Expected one rendered card per journal.');
+                        assert(container.children[0].querySelector('h4').textContent === 'Warrior', 'Expected first journal title to render.');
+                        assert(container.children[1].querySelector('.journal-detail-updated').textContent.includes('formatted:2026-04-14T08:00:00.000Z'), 'Expected custom timestamp formatting to be used in rendering.');
+                    }
+                },
+                {
+                    name: 'renderJournalDetailsList applies active journal highlight class',
+                    run() {
+                        const container = document.createElement('ul');
+
+                        helper.renderJournalDetailsList(container, [
+                            {
+                                id: 'journal-one',
+                                name: 'Warrior',
+                                updatedAt: '2026-04-13T08:00:00.000Z',
+                                quests: [{ title: 'Unbound', category: 'Main Quest', status: 'Completed' }]
+                            },
+                            {
+                                id: 'journal-two',
+                                name: 'Mage',
+                                updatedAt: '2026-04-14T08:00:00.000Z',
+                                quests: [{ title: 'First Lessons', category: 'Faction', status: 'Active' }]
+                            }
+                        ], 'journal-two');
+
+                        assert(!container.children[0].classList.contains('active'), 'Expected non-active journal cards to omit the active class.');
+                        assert(container.children[1].classList.contains('active'), 'Expected the selected journal card to receive the active class.');
+                        assert(container.children[1].querySelector('.journal-detail-meta').textContent === 'Currently selected playthrough', 'Expected the active journal label to render.');
                     }
                 }
             ];

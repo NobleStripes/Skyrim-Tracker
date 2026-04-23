@@ -288,10 +288,20 @@ const {
     normalizeQuest,
     parseQuestCollection,
     normalizeJournal,
-    getVisibleQuests,
+    parseJournalStore: parseJournalCollection,
+    migrateLegacyQuestStore,
+    inferImportedJournalName: inferJournalNameFromPayload,
+    createImportedJournal,
+    buildJournalExport,
+    buildJournalStoreExport,
+    parseJournalBackup,
+    getVisibleQuests: getVisibleQuestList,
     duplicateJournal,
     selectJournal,
     deleteJournal,
+    touchJournal,
+    summarizeJournal,
+    renderJournalDetailsList,
     createDefaultJournal
 } = window.SkyrimQuestData;
 
@@ -320,6 +330,7 @@ const state = {
 const questListEl = document.getElementById('quest-list');
 const emptyStateEl = document.getElementById('empty-state');
 const currentCategoryTitleEl = document.getElementById('current-category-title');
+const journalDetailsListEl = document.getElementById('journal-details-list');
 
 const searchInput = document.getElementById('search-input');
 const statusFilter = document.getElementById('status-filter');
@@ -334,9 +345,12 @@ const questSummaryEl = document.getElementById('quest-summary');
 
 const btnAddQuest = document.getElementById('btn-add-quest');
 const btnImportQuests = document.getElementById('btn-import-quests');
+const btnImportBackup = document.getElementById('btn-import-backup');
 const btnExportQuests = document.getElementById('btn-export-quests');
+const btnExportBackup = document.getElementById('btn-export-backup');
 const btnResetQuests = document.getElementById('btn-reset-quests');
 const importQuestsInput = document.getElementById('import-quests-input');
+const importBackupInput = document.getElementById('import-backup-input');
 const modal = document.getElementById('quest-modal');
 const closeModalBtn = document.getElementById('close-modal');
 const questForm = document.getElementById('quest-form');
@@ -370,7 +384,7 @@ function loadJournalState() {
 
     try {
         const parsedJournalStore = JSON.parse(savedJournalStore);
-        const parsedJournals = parseJournalStore(parsedJournalStore);
+        const parsedJournals = parseJournalCollection(parsedJournalStore);
         state.journals = parsedJournals;
         state.activeJournalId = parsedJournals.some(journal => journal.id === savedActiveJournalId)
             ? savedActiveJournalId
@@ -398,22 +412,6 @@ function createStarterJournal(name = DEFAULT_JOURNAL_NAME) {
     return createDefaultJournal(createDefaultQuests(), name);
 }
 
-function parseJournalStore(rawStore) {
-    const rawJournals = Array.isArray(rawStore)
-        ? rawStore
-        : Array.isArray(rawStore?.journals)
-            ? rawStore.journals
-            : null;
-
-    if (!rawJournals || rawJournals.length === 0) {
-        throw new Error('Journal data must include at least one journal.');
-    }
-
-    return rawJournals
-        .map((journal, index) => normalizeJournal(journal, `Journal ${index + 1}`))
-        .filter(Boolean);
-}
-
 function migrateLegacyJournalState() {
     const legacyQuests = localStorage.getItem(LEGACY_STORAGE_KEY);
 
@@ -423,11 +421,7 @@ function migrateLegacyJournalState() {
     }
 
     try {
-        const parsedLegacyQuests = parseQuestCollection(JSON.parse(legacyQuests));
-        const migratedJournal = normalizeJournal({
-            name: DEFAULT_JOURNAL_NAME,
-            quests: parsedLegacyQuests
-        }, DEFAULT_JOURNAL_NAME);
+        const migratedJournal = migrateLegacyQuestStore(JSON.parse(legacyQuests), DEFAULT_JOURNAL_NAME);
 
         state.journals = [migratedJournal];
         state.activeJournalId = migratedJournal.id;
@@ -458,6 +452,15 @@ function syncActiveJournalQuests() {
     }
 
     activeJournal.quests = state.quests;
+}
+
+function markActiveJournalUpdated() {
+    const activeJournal = getActiveJournal();
+    if (!activeJournal) {
+        return;
+    }
+
+    Object.assign(activeJournal, touchJournal(activeJournal));
 }
 
 function setActiveJournal(journalId) {
@@ -491,7 +494,9 @@ function updateJournalControls() {
     btnRenameJournal.disabled = !hasActiveJournal;
     btnDuplicateJournal.disabled = !hasActiveJournal;
     btnDeleteJournal.disabled = state.journals.length <= 1;
+    btnImportBackup.disabled = false;
     btnExportQuests.disabled = !hasActiveJournal;
+    btnExportBackup.disabled = state.journals.length === 0;
     btnResetQuests.disabled = !hasActiveJournal;
 }
 
@@ -542,6 +547,7 @@ function renderQuests() {
     // Update UI
     currentCategoryTitleEl.textContent = getCurrentCategoryTitle();
     questListEl.innerHTML = '';
+    renderJournalDetails();
     updateQuestSummary(filteredQuests.length);
 
     if (filteredQuests.length === 0) {
@@ -559,7 +565,25 @@ function getCurrentCategoryTitle() {
 }
 
 function getVisibleQuests() {
-    return window.SkyrimQuestData.getVisibleQuests(state.quests, state.filters);
+    return getVisibleQuestList(state.quests, state.filters);
+}
+
+function renderJournalDetails() {
+    renderJournalDetailsList(journalDetailsListEl, state.journals, state.activeJournalId, {
+        formatTimestamp: formatJournalTimestamp
+    });
+}
+
+function formatJournalTimestamp(timestamp) {
+    const parsed = Date.parse(timestamp);
+    if (Number.isNaN(parsed)) {
+        return 'Unknown';
+    }
+
+    return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+    }).format(parsed);
 }
 
 function updateQuestSummary(visibleCount) {
@@ -742,10 +766,16 @@ function setupEventListeners() {
         importQuestsInput.click();
     });
 
+    btnImportBackup.addEventListener('click', () => {
+        importBackupInput.click();
+    });
+
     importQuestsInput.addEventListener('change', importQuestsFromFile);
+    importBackupInput.addEventListener('change', importBackupFromFile);
     closeModalBtn.addEventListener('click', closeModal);
     modal.addEventListener('keydown', handleModalKeydown);
     btnExportQuests.addEventListener('click', exportQuests);
+    btnExportBackup.addEventListener('click', exportBackup);
     btnResetQuests.addEventListener('click', resetQuests);
 
     // Close modal on outside click
@@ -860,6 +890,7 @@ function saveQuestFromForm() {
         state.quests.unshift(newQuest);
     }
 
+    markActiveJournalUpdated();
     saveJournalState();
     renderQuests();
     closeModal();
@@ -934,6 +965,7 @@ function handleModalKeydown(event) {
 
 function deleteQuest(id) {
     state.quests = state.quests.filter(q => q.id !== id);
+    markActiveJournalUpdated();
     saveJournalState();
     renderQuests();
 }
@@ -942,6 +974,7 @@ function updateQuestStatus(id, newStatus) {
     const quest = state.quests.find(q => q.id === id);
     if (quest) {
         quest.status = newStatus;
+        markActiveJournalUpdated();
         saveJournalState();
         renderQuests();
     }
@@ -949,12 +982,7 @@ function updateQuestStatus(id, newStatus) {
 
 function exportQuests() {
     const activeJournal = getActiveJournal();
-    const payload = {
-        exportedAt: new Date().toISOString(),
-        journalName: activeJournal ? activeJournal.name : DEFAULT_JOURNAL_NAME,
-        questCount: state.quests.length,
-        quests: state.quests
-    };
+    const payload = buildJournalExport(activeJournal || createStarterJournal(DEFAULT_JOURNAL_NAME));
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -970,6 +998,21 @@ function exportQuests() {
     URL.revokeObjectURL(url);
 }
 
+function exportBackup() {
+    const payload = buildJournalStoreExport(state.journals, state.activeJournalId);
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 10);
+
+    link.href = url;
+    link.download = `skyrim-quest-backup-${stamp}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
 async function importQuestsFromFile(event) {
     const file = event.target.files?.[0];
     if (!file) {
@@ -978,13 +1021,14 @@ async function importQuestsFromFile(event) {
 
     try {
         const payload = JSON.parse(await file.text());
-        const importedQuests = parseQuestCollection(payload);
+        const importedJournal = createImportedJournal(payload, 'Imported Journal');
+        const importedQuests = importedJournal.quests;
 
         if (importedQuests.length === 0) {
             throw new Error('No valid quests were found in the selected file.');
         }
 
-        const suggestedName = makeUniqueJournalName(inferImportedJournalName(payload, file.name));
+        const suggestedName = makeUniqueJournalName(inferJournalNameFromPayload(payload, file.name.replace(/\.json$/i, '').replace(/[-_]+/g, ' ')));
         const requestedName = prompt('Name this imported journal:', suggestedName);
         if (requestedName === null) {
             return;
@@ -1003,18 +1047,25 @@ async function importQuestsFromFile(event) {
                 return;
             }
 
-            existingJournal.quests = importedQuests;
+            Object.assign(existingJournal, normalizeJournal({
+                ...importedJournal,
+                id: existingJournal.id,
+                name: journalName,
+                quests: importedQuests,
+                updatedAt: new Date().toISOString()
+            }, journalName));
             state.activeJournalId = existingJournal.id;
             state.quests = existingJournal.quests;
         } else {
-            const importedJournal = normalizeJournal({
+            const importedJournalEntry = normalizeJournal({
+                ...importedJournal,
                 name: journalName,
-                quests: importedQuests
+                updatedAt: new Date().toISOString()
             }, journalName);
 
-            state.journals.unshift(importedJournal);
-            state.activeJournalId = importedJournal.id;
-            state.quests = importedJournal.quests;
+            state.journals.unshift(importedJournalEntry);
+            state.activeJournalId = importedJournalEntry.id;
+            state.quests = importedJournalEntry.quests;
         }
 
         resetFilters();
@@ -1028,6 +1079,38 @@ async function importQuestsFromFile(event) {
         alert('Unable to import that journal. Use a Skyrim Tracker export JSON file or a plain quest array.');
     } finally {
         importQuestsInput.value = '';
+    }
+}
+
+async function importBackupFromFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) {
+        return;
+    }
+
+    try {
+        const payload = JSON.parse(await file.text());
+        const backup = parseJournalBackup(payload);
+        const shouldImport = confirm(`Import ${backup.journals.length} journals from ${file.name}? This will replace all current playthroughs.`);
+        if (!shouldImport) {
+            return;
+        }
+
+        state.journals = backup.journals;
+        state.activeJournalId = backup.activeJournalId;
+        state.quests = selectJournal(backup.journals, backup.activeJournalId)?.quests || [];
+
+        resetFilters();
+        syncControlsWithState();
+        syncCategoryNavigation();
+        renderJournalOptions();
+        saveJournalState();
+        renderQuests();
+    } catch (error) {
+        console.error('Failed to import backup.', error);
+        alert('Unable to import that backup. Use a Skyrim Tracker backup JSON file with a journals array.');
+    } finally {
+        importBackupInput.value = '';
     }
 }
 
@@ -1048,6 +1131,7 @@ function resetQuests() {
     syncControlsWithState();
     syncCategoryNavigation();
 
+    markActiveJournalUpdated();
     saveJournalState();
     renderQuests();
 }
@@ -1112,6 +1196,7 @@ function renameActiveJournalFromPrompt() {
     }
 
     activeJournal.name = journalName;
+    markActiveJournalUpdated();
     renderJournalOptions();
     saveJournalState();
     renderQuests();
@@ -1182,12 +1267,7 @@ function deleteActiveJournal() {
 }
 
 function inferImportedJournalName(payload, fileName) {
-    const explicitName = sanitizeJournalName(payload?.journalName || payload?.name || payload?.journal?.name);
-    if (explicitName) {
-        return explicitName;
-    }
-
-    return fileName.replace(/\.json$/i, '').replace(/[-_]+/g, ' ');
+    return inferJournalNameFromPayload(payload, fileName.replace(/\.json$/i, '').replace(/[-_]+/g, ' '));
 }
 
 function sanitizeFileSegment(value) {

@@ -307,6 +307,85 @@ input:focus, select:focus, textarea:focus {
     color: #6a5b4c;
 }
 
+.journal-details-panel {
+    position: relative;
+    z-index: 1;
+    margin-bottom: 2rem;
+    padding: 1.2rem 1.35rem;
+    border: 1px solid rgba(90, 75, 60, 0.32);
+    background: rgba(255, 248, 235, 0.42);
+    box-shadow: 0 10px 24px rgba(59, 47, 33, 0.08);
+}
+
+.journal-details-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: baseline;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.journal-details-header h3 {
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #3b2f21;
+}
+
+.journal-details-header p {
+    color: #5a4b3c;
+    font-size: 1rem;
+}
+
+.journal-details-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 0.9rem;
+}
+
+.journal-detail-card {
+    border: 1px solid rgba(90, 75, 60, 0.25);
+    background: rgba(255, 255, 255, 0.34);
+    padding: 0.95rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.journal-detail-card.active {
+    border-color: rgba(139, 30, 16, 0.4);
+    box-shadow: inset 0 0 0 1px rgba(139, 30, 16, 0.12);
+}
+
+.journal-detail-card h4 {
+    font-size: 1rem;
+    color: #3b2f21;
+}
+
+.journal-detail-meta,
+.journal-detail-updated {
+    color: #5a4b3c;
+    font-size: 0.98rem;
+}
+
+.journal-detail-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.journal-detail-counts span {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.55rem;
+    background: rgba(59, 47, 33, 0.08);
+    border: 1px solid rgba(59, 47, 33, 0.16);
+    font-size: 0.86rem;
+    color: #3b2f21;
+}
+
 /* Quest List */
 .quest-list-container {
     position: relative;
@@ -633,6 +712,10 @@ input:focus, select:focus, textarea:focus {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.75rem;
+    }
+    .journal-details-header {
+        flex-direction: column;
+        align-items: flex-start;
     }
     .quest-tags {
         gap: 0.45rem;

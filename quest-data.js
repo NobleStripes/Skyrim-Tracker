@@ -17,6 +17,23 @@
         Completed: 2
     };
 
+    function createTimestamp() {
+        return new Date().toISOString();
+    }
+
+    function normalizeTimestamp(value, fallbackValue = createTimestamp()) {
+        if (typeof value !== 'string') {
+            return fallbackValue;
+        }
+
+        const trimmedValue = value.trim();
+        if (!trimmedValue || Number.isNaN(Date.parse(trimmedValue))) {
+            return fallbackValue;
+        }
+
+        return trimmedValue;
+    }
+
     function createId(prefix = '') {
         const rawId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
         return prefix ? `${prefix}-${rawId}` : rawId;
@@ -76,16 +93,114 @@
             return null;
         }
 
+        const now = createTimestamp();
         const name = typeof rawJournal.name === 'string' && rawJournal.name.trim()
             ? rawJournal.name.trim()
             : fallbackName;
         const id = typeof rawJournal.id === 'string' && rawJournal.id.trim() ? rawJournal.id.trim() : createId('journal');
         const quests = parseQuestCollection(Array.isArray(rawJournal.quests) ? rawJournal.quests : rawJournal);
+        const createdAt = normalizeTimestamp(rawJournal.createdAt, now);
+        const updatedAt = normalizeTimestamp(rawJournal.updatedAt, createdAt);
 
         return {
             id,
             name,
+            quests,
+            createdAt,
+            updatedAt
+        };
+    }
+
+    function parseJournalStore(rawStore) {
+        const rawJournals = Array.isArray(rawStore)
+            ? rawStore
+            : Array.isArray(rawStore?.journals)
+                ? rawStore.journals
+                : null;
+
+        if (!rawJournals || rawJournals.length === 0) {
+            throw new Error('Journal data must include at least one journal.');
+        }
+
+        const normalizedJournals = rawJournals
+            .map((journal, index) => normalizeJournal(journal, `Journal ${index + 1}`))
+            .filter(Boolean);
+
+        if (normalizedJournals.length === 0) {
+            throw new Error('Journal data did not contain any valid journals.');
+        }
+
+        return normalizedJournals;
+    }
+
+    function migrateLegacyQuestStore(rawLegacyPayload, defaultName = 'Dragonborn') {
+        return normalizeJournal({
+            name: defaultName,
+            quests: parseQuestCollection(rawLegacyPayload)
+        }, defaultName);
+    }
+
+    function inferImportedJournalName(rawPayload, fallbackName = 'Imported Journal') {
+        const explicitName = typeof rawPayload?.journalName === 'string' && rawPayload.journalName.trim()
+            ? rawPayload.journalName.trim()
+            : typeof rawPayload?.name === 'string' && rawPayload.name.trim()
+                ? rawPayload.name.trim()
+                : typeof rawPayload?.journal?.name === 'string' && rawPayload.journal.name.trim()
+                    ? rawPayload.journal.name.trim()
+                    : '';
+
+        return explicitName || fallbackName;
+    }
+
+    function createImportedJournal(rawPayload, fallbackName = 'Imported Journal') {
+        const quests = parseQuestCollection(rawPayload);
+        const inferredName = inferImportedJournalName(rawPayload, fallbackName);
+
+        return normalizeJournal({
+            name: inferredName,
+            createdAt: rawPayload?.createdAt,
+            updatedAt: rawPayload?.updatedAt,
             quests
+        }, inferredName);
+    }
+
+    function buildJournalExport(rawJournal, exportedAt = createTimestamp()) {
+        const journal = normalizeJournal(rawJournal, 'Journal');
+        if (!journal) {
+            throw new Error('A valid journal is required to export.');
+        }
+
+        return {
+            exportedAt: normalizeTimestamp(exportedAt),
+            journalName: journal.name,
+            createdAt: journal.createdAt,
+            updatedAt: journal.updatedAt,
+            questCount: journal.quests.length,
+            quests: journal.quests
+        };
+    }
+
+    function buildJournalStoreExport(rawJournals, activeJournalId, exportedAt = createTimestamp()) {
+        const journals = parseJournalStore(rawJournals);
+        const activeJournal = selectJournal(journals, activeJournalId);
+
+        return {
+            format: 'skyrim-tracker-backup',
+            exportedAt: normalizeTimestamp(exportedAt),
+            activeJournalId: activeJournal ? activeJournal.id : journals[0].id,
+            journalCount: journals.length,
+            journals
+        };
+    }
+
+    function parseJournalBackup(rawPayload) {
+        const journals = parseJournalStore(rawPayload);
+        const activeJournal = selectJournal(journals, rawPayload?.activeJournalId);
+
+        return {
+            journals,
+            activeJournalId: activeJournal ? activeJournal.id : journals[0].id,
+            exportedAt: normalizeTimestamp(rawPayload?.exportedAt, createTimestamp())
         };
     }
 
@@ -159,11 +274,107 @@
             throw new Error('A valid journal is required to duplicate.');
         }
 
+        const timestamp = createTimestamp();
+
         return {
             id: createId('journal'),
             name: nextName || `${journal.name} Copy`,
-            quests: journal.quests.map(cloneQuest)
+            quests: journal.quests.map(cloneQuest),
+            createdAt: timestamp,
+            updatedAt: timestamp
         };
+    }
+
+    function touchJournal(rawJournal, timestamp = createTimestamp()) {
+        const journal = normalizeJournal(rawJournal, 'Journal');
+        if (!journal) {
+            throw new Error('A valid journal is required to update.');
+        }
+
+        return {
+            ...journal,
+            updatedAt: normalizeTimestamp(timestamp, journal.updatedAt)
+        };
+    }
+
+    function summarizeJournal(rawJournal) {
+        const journal = normalizeJournal(rawJournal, 'Journal');
+        if (!journal) {
+            return null;
+        }
+
+        const completed = journal.quests.filter(quest => quest.status === 'Completed').length;
+        const active = journal.quests.filter(quest => quest.status === 'Active').length;
+        const notStarted = journal.quests.filter(quest => quest.status === 'Not Started').length;
+
+        return {
+            id: journal.id,
+            name: journal.name,
+            total: journal.quests.length,
+            completed,
+            active,
+            notStarted,
+            createdAt: journal.createdAt,
+            updatedAt: journal.updatedAt
+        };
+    }
+
+    function buildJournalDetailsViewModel(rawJournals = [], activeJournalId) {
+        return parseJournalStore(rawJournals).map(journal => {
+            const summary = summarizeJournal(journal);
+            return {
+                ...summary,
+                isActive: journal.id === activeJournalId,
+                statusLabel: journal.id === activeJournalId ? 'Currently selected playthrough' : 'Available playthrough'
+            };
+        });
+    }
+
+    function renderJournalDetailsList(container, rawJournals = [], activeJournalId, options = {}) {
+        if (!container) {
+            throw new Error('A container element is required to render journal details.');
+        }
+
+        const formatTimestamp = typeof options.formatTimestamp === 'function'
+            ? options.formatTimestamp
+            : (value) => value;
+        const viewModel = buildJournalDetailsViewModel(rawJournals, activeJournalId);
+
+        container.innerHTML = '';
+
+        viewModel.forEach(summary => {
+            const item = container.ownerDocument.createElement('li');
+            item.className = `journal-detail-card${summary.isActive ? ' active' : ''}`;
+
+            const title = container.ownerDocument.createElement('h4');
+            title.textContent = summary.name;
+
+            const meta = container.ownerDocument.createElement('p');
+            meta.className = 'journal-detail-meta';
+            meta.textContent = summary.statusLabel;
+
+            const counts = container.ownerDocument.createElement('div');
+            counts.className = 'journal-detail-counts';
+            [
+                `${summary.total} total`,
+                `${summary.active} active`,
+                `${summary.completed} completed`,
+                `${summary.notStarted} not started`
+            ].forEach(label => {
+                const chip = container.ownerDocument.createElement('span');
+                chip.textContent = label;
+                counts.appendChild(chip);
+            });
+
+            const updated = container.ownerDocument.createElement('p');
+            updated.className = 'journal-detail-updated';
+            updated.textContent = `Last updated: ${formatTimestamp(summary.updatedAt)}`;
+
+            item.append(title, meta, counts, updated);
+            container.appendChild(item);
+        });
+
+        return viewModel;
     }
 
     function selectJournal(rawJournals = [], journalId) {
@@ -199,6 +410,13 @@
         normalizeQuest,
         parseQuestCollection,
         normalizeJournal,
+        parseJournalStore,
+        migrateLegacyQuestStore,
+        inferImportedJournalName,
+        createImportedJournal,
+        buildJournalExport,
+        buildJournalStoreExport,
+        parseJournalBackup,
         normalizeFilters,
         matchesQuestFilters,
         compareQuests,
@@ -206,6 +424,10 @@
         duplicateJournal,
         selectJournal,
         deleteJournal,
+        touchJournal,
+        summarizeJournal,
+        buildJournalDetailsViewModel,
+        renderJournalDetailsList,
         createDefaultJournal
     };
 }(window));

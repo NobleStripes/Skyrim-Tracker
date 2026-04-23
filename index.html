@@ -68,11 +68,21 @@
                     </div>
                     <div class="utility-actions">
                         <button type="button" id="btn-import-quests" class="secondary-btn">Import Journal</button>
+                        <button type="button" id="btn-import-backup" class="secondary-btn">Import Backup</button>
                         <button type="button" id="btn-export-quests" class="secondary-btn">Export Journal</button>
+                        <button type="button" id="btn-export-backup" class="secondary-btn">Export Backup</button>
                         <button type="button" id="btn-reset-quests" class="secondary-btn danger-btn">Reset Journal</button>
                     </div>
                 </div>
             </header>
+
+            <section class="journal-details-panel" aria-labelledby="journal-details-title">
+                <div class="journal-details-header">
+                    <h3 id="journal-details-title">Journal Details</h3>
+                    <p>Quest counts and last-updated timestamps for each playthrough.</p>
+                </div>
+                <ul id="journal-details-list" class="journal-details-list"></ul>
+            </section>
 
             <div class="quest-list-container">
                 <ul id="quest-list" class="quest-list">
@@ -87,6 +97,7 @@
     </div>
 
     <input type="file" id="import-quests-input" accept=".json,application/json" hidden>
+    <input type="file" id="import-backup-input" accept=".json,application/json" hidden>
 
     <!-- Add/Edit Quest Modal -->
     <div id="quest-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="quest-form-help">
