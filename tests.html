@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skyrim Tracker Tests</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #111318;
+            --panel: #1a2028;
+            --border: #70573a;
+            --text: #ede2cf;
+            --muted: #b7aa94;
+            --pass: #4da46a;
+            --fail: #c05a4f;
+            --accent: #d3b17c;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            padding: 2rem;
+            font-family: Georgia, serif;
+            background: radial-gradient(circle at top, #20242c, var(--bg) 58%);
+            color: var(--text);
+        }
+
+        main {
+            max-width: 64rem;
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin-bottom: 0.5rem;
+            color: var(--accent);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        p {
+            color: var(--muted);
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin: 1.5rem 0;
+        }
+
+        button {
+            border: 1px solid var(--accent);
+            background: transparent;
+            color: var(--accent);
+            padding: 0.7rem 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        button:hover {
+            background: rgba(211, 177, 124, 0.12);
+        }
+
+        .summary {
+            padding: 1rem 1.2rem;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            margin-bottom: 1rem;
+        }
+
+        .summary.pass {
+            border-left: 4px solid var(--pass);
+        }
+
+        .summary.fail {
+            border-left: 4px solid var(--fail);
+        }
+
+        .results {
+            display: grid;
+            gap: 0.85rem;
+        }
+
+        .result {
+            background: var(--panel);
+            border: 1px solid rgba(112, 87, 58, 0.45);
+            padding: 1rem 1.2rem;
+        }
+
+        .result.pass {
+            border-left: 4px solid var(--pass);
+        }
+
+        .result.fail {
+            border-left: 4px solid var(--fail);
+        }
+
+        .result h2 {
+            margin: 0 0 0.35rem;
+            font-size: 1rem;
+        }
+
+        .result pre {
+            margin-top: 0.75rem;
+            padding: 0.85rem;
+            background: rgba(0, 0, 0, 0.22);
+            overflow-x: auto;
+            color: #f3ebe0;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Skyrim Tracker Tests</h1>
+        <p>This page exercises the shared import parsing, filtering, sorting, and journal-management helpers used by the app.</p>
+        <div class="toolbar">
+            <button type="button" id="rerun-tests">Run Tests Again</button>
+            <span id="timestamp"></span>
+        </div>
+        <section id="summary" class="summary"></section>
+        <section id="results" class="results"></section>
+    </main>
+
+    <script src="quest-data.js"></script>
+    <script>
+        const summaryEl = document.getElementById('summary');
+        const resultsEl = document.getElementById('results');
+        const timestampEl = document.getElementById('timestamp');
+        const rerunButton = document.getElementById('rerun-tests');
+
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message);
+            }
+        }
+
+        function formatError(error) {
+            return error && error.stack ? error.stack : String(error);
+        }
+
+        function runTests() {
+            const helper = window.SkyrimQuestData;
+            const tests = [
+                {
+                    name: 'normalizeQuest trims and defaults fields',
+                    run() {
+                        const quest = helper.normalizeQuest({
+                            title: '  Test Quest  ',
+                            category: 'Invalid',
+                            status: 'Broken',
+                            location: '  Whiterun  ',
+                            notes: '  Journal entry  ',
+                            prerequisites: ['  Before the Storm  ', '', null],
+                            branchGroup: '  Civil War  ',
+                            branch: '  Imperial  '
+                        });
+
+                        assert(quest.title === 'Test Quest', 'Expected title to be trimmed.');
+                        assert(quest.category === 'Miscellaneous', 'Expected invalid category to default to Miscellaneous.');
+                        assert(quest.status === 'Not Started', 'Expected invalid status to default to Not Started.');
+                        assert(quest.location === 'Whiterun', 'Expected location to be trimmed.');
+                        assert(quest.notes === 'Journal entry', 'Expected notes to be trimmed.');
+                        assert(quest.prerequisites.length === 1 && quest.prerequisites[0] === 'Before the Storm', 'Expected prerequisites to be normalized.');
+                        assert(quest.branchGroup === 'Civil War', 'Expected branchGroup to be trimmed.');
+                        assert(quest.branch === 'Imperial', 'Expected branch to be trimmed.');
+                    }
+                },
+                {
+                    name: 'parseQuestCollection accepts export payloads',
+                    run() {
+                        const quests = helper.parseQuestCollection({
+                            journalName: 'Nord Hero',
+                            quests: [
+                                { title: 'Unbound', category: 'Main Quest', status: 'Completed' },
+                                { title: 'Dragon Rising', category: 'Main Quest', status: 'Active' }
+                            ]
+                        });
+
+                        assert(Array.isArray(quests), 'Expected an array of quests.');
+                        assert(quests.length === 2, 'Expected two parsed quests.');
+                        assert(quests[1].status === 'Active', 'Expected explicit status to survive parsing.');
+                    }
+                },
+                {
+                    name: 'parseQuestCollection rejects invalid payloads',
+                    run() {
+                        let threw = false;
+
+                        try {
+                            helper.parseQuestCollection({ invalid: true });
+                        } catch (error) {
+                            threw = /quests array/i.test(String(error.message));
+                        }
+
+                        assert(threw, 'Expected invalid payloads to throw a quests-array error.');
+                    }
+                },
+                {
+                    name: 'normalizeJournal preserves names and nested quests',
+                    run() {
+                        const journal = helper.normalizeJournal({
+                            name: '  Mage Run  ',
+                            quests: [
+                                { title: 'Visit the College of Winterhold', category: 'Miscellaneous', status: 'Active' }
+                            ]
+                        }, 'Fallback');
+
+                        assert(journal.name === 'Mage Run', 'Expected journal name to be trimmed.');
+                        assert(journal.quests.length === 1, 'Expected normalized nested quests.');
+                        assert(journal.quests[0].title === 'Visit the College of Winterhold', 'Expected quest title to persist.');
+                    }
+                },
+                {
+                    name: 'createDefaultJournal creates a named journal wrapper',
+                    run() {
+                        const journal = helper.createDefaultJournal([
+                            { title: 'A Night to Remember', category: 'Side Quest', status: 'Not Started' }
+                        ], 'Bard Run');
+
+                        assert(journal.name === 'Bard Run', 'Expected the provided journal name.');
+                        assert(journal.quests.length === 1, 'Expected quests to be wrapped into the journal.');
+                        assert(journal.id.startsWith('journal-'), 'Expected journal ids to carry a journal prefix.');
+                    }
+                },
+                {
+                    name: 'getVisibleQuests filters by category, status, and search terms',
+                    run() {
+                        const quests = [
+                            helper.normalizeQuest({ title: 'Dragon Rising', category: 'Main Quest', status: 'Active', notes: 'Meet the Jarl' }),
+                            helper.normalizeQuest({ title: 'Take Up Arms', category: 'Faction', status: 'Not Started', notes: 'Join the Companions' }),
+                            helper.normalizeQuest({ title: 'The Black Star', category: 'Daedric', status: 'Completed', branchGroup: 'Azura Artifact Choice' })
+                        ];
+
+                        const filtered = helper.getVisibleQuests(quests, {
+                            category: 'Daedric',
+                            status: 'Completed',
+                            search: 'azura',
+                            sort: 'recent'
+                        });
+
+                        assert(filtered.length === 1, 'Expected one visible quest after combined filtering.');
+                        assert(filtered[0].title === 'The Black Star', 'Expected the matching Daedric quest to remain visible.');
+                    }
+                },
+                {
+                    name: 'getVisibleQuests sorts by status order then title',
+                    run() {
+                        const quests = [
+                            helper.normalizeQuest({ title: 'The Way of the Voice', category: 'Main Quest', status: 'Not Started' }),
+                            helper.normalizeQuest({ title: 'Bleak Falls Barrow', category: 'Main Quest', status: 'Active' }),
+                            helper.normalizeQuest({ title: 'A Blade in the Dark', category: 'Main Quest', status: 'Active' }),
+                            helper.normalizeQuest({ title: 'Dragon Rising', category: 'Main Quest', status: 'Completed' })
+                        ];
+
+                        const sorted = helper.getVisibleQuests(quests, { sort: 'status' });
+                        const titles = sorted.map(quest => quest.title);
+
+                        assert(titles[0] === 'A Blade in the Dark', 'Expected active quests to sort first and alphabetically.');
+                        assert(titles[1] === 'Bleak Falls Barrow', 'Expected second active quest to follow alphabetically.');
+                        assert(titles[3] === 'Dragon Rising', 'Expected completed quests to sort last.');
+                    }
+                },
+                {
+                    name: 'selectJournal returns requested journal or falls back to the first',
+                    run() {
+                        const journals = [
+                            helper.normalizeJournal({ id: 'journal-one', name: 'Warrior', quests: [{ title: 'Unbound', category: 'Main Quest', status: 'Completed' }] }, 'Warrior'),
+                            helper.normalizeJournal({ id: 'journal-two', name: 'Mage', quests: [{ title: 'First Lessons', category: 'Faction', status: 'Active' }] }, 'Mage')
+                        ];
+
+                        const selected = helper.selectJournal(journals, 'journal-two');
+                        const fallback = helper.selectJournal(journals, 'missing');
+
+                        assert(selected.name === 'Mage', 'Expected explicit journal selection to succeed.');
+                        assert(fallback.name === 'Warrior', 'Expected missing selection to fall back to the first journal.');
+                    }
+                },
+                {
+                    name: 'duplicateJournal clones quests and gives them new ids',
+                    run() {
+                        const original = helper.normalizeJournal({
+                            id: 'journal-original',
+                            name: 'Stealth Run',
+                            quests: [
+                                { id: 'quest-1', title: 'Loud and Clear', category: 'Faction', status: 'Active', prerequisites: ['Taking Care of Business'] }
+                            ]
+                        }, 'Stealth Run');
+
+                        const duplicate = helper.duplicateJournal(original, 'Stealth Run Copy');
+
+                        assert(duplicate.name === 'Stealth Run Copy', 'Expected duplicate journal name to use the provided override.');
+                        assert(duplicate.id !== original.id, 'Expected duplicated journal to receive a new id.');
+                        assert(duplicate.quests[0].id !== original.quests[0].id, 'Expected duplicated quests to receive new ids.');
+                        assert(duplicate.quests[0].title === original.quests[0].title, 'Expected duplicated quest content to be preserved.');
+                    }
+                },
+                {
+                    name: 'deleteJournal removes one journal but preserves the rest',
+                    run() {
+                        const journals = [
+                            helper.normalizeJournal({ id: 'journal-one', name: 'Warrior', quests: [{ title: 'Unbound', category: 'Main Quest', status: 'Completed' }] }, 'Warrior'),
+                            helper.normalizeJournal({ id: 'journal-two', name: 'Mage', quests: [{ title: 'First Lessons', category: 'Faction', status: 'Active' }] }, 'Mage')
+                        ];
+
+                        const remaining = helper.deleteJournal(journals, 'journal-one');
+                        assert(remaining.length === 1, 'Expected one journal to remain after deletion.');
+                        assert(remaining[0].name === 'Mage', 'Expected the non-deleted journal to remain.');
+                    }
+                },
+                {
+                    name: 'deleteJournal rejects removing the final journal',
+                    run() {
+                        let threw = false;
+
+                        try {
+                            helper.deleteJournal([
+                                helper.normalizeJournal({ id: 'journal-one', name: 'Solo', quests: [{ title: 'Unbound', category: 'Main Quest', status: 'Completed' }] }, 'Solo')
+                            ], 'journal-one');
+                        } catch (error) {
+                            threw = /at least one journal/i.test(String(error.message));
+                        }
+
+                        assert(threw, 'Expected deleting the final journal to throw.');
+                    }
+                }
+            ];
+
+            const results = tests.map(test => {
+                try {
+                    test.run();
+                    return { name: test.name, status: 'pass' };
+                } catch (error) {
+                    return { name: test.name, status: 'fail', details: formatError(error) };
+                }
+            });
+
+            const failed = results.filter(result => result.status === 'fail');
+            summaryEl.className = `summary ${failed.length === 0 ? 'pass' : 'fail'}`;
+            summaryEl.textContent = failed.length === 0
+                ? `All ${results.length} tests passed.`
+                : `${failed.length} of ${results.length} tests failed.`;
+
+            resultsEl.innerHTML = '';
+            results.forEach(result => {
+                const article = document.createElement('article');
+                article.className = `result ${result.status}`;
+
+                const heading = document.createElement('h2');
+                heading.textContent = `${result.status === 'pass' ? 'PASS' : 'FAIL'}: ${result.name}`;
+                article.appendChild(heading);
+
+                if (result.details) {
+                    const details = document.createElement('pre');
+                    details.textContent = result.details;
+                    article.appendChild(details);
+                }
+
+                resultsEl.appendChild(article);
+            });
+
+            timestampEl.textContent = `Last run: ${new Date().toLocaleTimeString()}`;
+        }
+
+        rerunButton.addEventListener('click', runTests);
+        runTests();
+    </script>
+</body>
+</html>

@@ -39,6 +39,14 @@
                     <p class="header-subtitle">Track every hold, guild, and Daedric detour in one journal.</p>
                 </div>
                 <div class="header-controls">
+                    <div class="journal-controls">
+                        <label class="sr-only" for="journal-select">Select journal</label>
+                        <select id="journal-select" aria-label="Select character journal"></select>
+                        <button type="button" id="btn-new-journal" class="secondary-btn">New Journal</button>
+                        <button type="button" id="btn-rename-journal" class="secondary-btn">Rename Journal</button>
+                        <button type="button" id="btn-duplicate-journal" class="secondary-btn">Duplicate Journal</button>
+                        <button type="button" id="btn-delete-journal" class="secondary-btn danger-btn">Delete Journal</button>
+                    </div>
                     <div class="filter-grid">
                         <label class="sr-only" for="search-input">Search quests</label>
                         <input type="text" id="search-input" placeholder="Search quests..." aria-label="Search quests by title or notes" autocomplete="off">
@@ -59,6 +67,7 @@
                         </select>
                     </div>
                     <div class="utility-actions">
+                        <button type="button" id="btn-import-quests" class="secondary-btn">Import Journal</button>
                         <button type="button" id="btn-export-quests" class="secondary-btn">Export Journal</button>
                         <button type="button" id="btn-reset-quests" class="secondary-btn danger-btn">Reset Journal</button>
                     </div>
@@ -76,6 +85,8 @@
             <p id="quest-summary" class="quest-summary" aria-live="polite"></p>
         </main>
     </div>
+
+    <input type="file" id="import-quests-input" accept=".json,application/json" hidden>
 
     <!-- Add/Edit Quest Modal -->
     <div id="quest-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="quest-form-help">
@@ -128,6 +139,7 @@
         </div>
     </div>
 
+    <script src="quest-data.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

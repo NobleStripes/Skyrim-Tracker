@@ -240,6 +240,21 @@ textarea:focus-visible {
     justify-content: flex-end;
 }
 
+.journal-controls {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    width: 100%;
+}
+
+.journal-controls select {
+    min-width: min(100%, 16rem);
+    background-color: rgba(255, 255, 255, 0.45);
+    flex: 1 1 12rem;
+}
+
 .filter-grid {
     display: grid;
     grid-template-columns: minmax(14rem, 1.8fr) repeat(2, minmax(10rem, 1fr));
@@ -250,6 +265,17 @@ textarea:focus-visible {
     display: flex;
     gap: 0.75rem;
     flex-wrap: wrap;
+}
+
+.secondary-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.secondary-btn:disabled:hover {
+    background: rgba(59, 47, 33, 0.08);
+    color: #3b2f21;
 }
 
 input, select, textarea {
@@ -355,6 +381,51 @@ input:focus, select:focus, textarea:focus {
 
 .quest-notes p {
     white-space: pre-line;
+}
+
+.quest-taxonomy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.quest-tags {
+    display: flex;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+}
+
+.quest-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.65rem;
+    border: 1px solid rgba(59, 47, 33, 0.25);
+    border-radius: 999px;
+    background: rgba(59, 47, 33, 0.08);
+    color: #3b2f21;
+    font-family: var(--font-heading);
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.tag-branch-group {
+    background: rgba(127, 91, 50, 0.16);
+    border-color: rgba(127, 91, 50, 0.35);
+}
+
+.tag-branch {
+    background: rgba(139, 30, 16, 0.1);
+    border-color: rgba(139, 30, 16, 0.28);
+}
+
+.quest-prerequisites {
+    color: #5a4b3c;
+    font-size: 1rem;
+}
+
+.quest-prerequisites strong {
+    color: #3b2f21;
 }
 
 .quest-actions {
@@ -536,13 +607,18 @@ input:focus, select:focus, textarea:focus {
         flex-direction: column;
         align-items: stretch;
     }
+    .journal-controls,
     .filter-grid,
     .utility-actions {
         width: 100%;
     }
+    .journal-controls {
+        justify-content: stretch;
+    }
     .filter-grid {
         grid-template-columns: 1fr;
     }
+    .journal-controls,
     .utility-actions {
         flex-direction: column;
     }
@@ -557,6 +633,9 @@ input:focus, select:focus, textarea:focus {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.75rem;
+    }
+    .quest-tags {
+        gap: 0.45rem;
     }
     .main-header h2 {
         font-size: 2rem;
